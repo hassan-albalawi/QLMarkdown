@@ -22,9 +22,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             return false
         }
         let file = URL(fileURLWithPath: filename)
-        guard file.pathExtension.lowercased() == "md" else {
-            return false
-        }
+        // Accept any file type registered in Info.plist CFBundleDocumentTypes
         return controller.openMarkdown(file: file)
     }
     

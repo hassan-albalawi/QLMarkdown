@@ -437,6 +437,21 @@ class ViewController: NSViewController {
     
     @IBOutlet weak var tabView: NSTabView!
     @IBOutlet weak var tabViewLeftConstraint: NSLayoutConstraint!
+    @IBOutlet weak var tabViewHeightConstraint: NSLayoutConstraint!
+
+    /// Whether the settings panel is hidden (viewer mode) - defaults to true
+    var settingsHidden: Bool {
+        get {
+            // Use "settings-shown" key so default (false) means hidden
+            return !UserDefaults.standard.bool(forKey: "qlmarkdown-settings-shown")
+        }
+        set {
+            UserDefaults.standard.set(!newValue, forKey: "qlmarkdown-settings-shown")
+            updateSettingsVisibility(animated: true)
+        }
+    }
+
+    private var savedTabViewHeight: CGFloat = 213
     
     @IBOutlet weak var webView: WKWebView!
     @IBOutlet weak var textView: NSTextView!
@@ -584,15 +599,41 @@ class ViewController: NSViewController {
         panel.canChooseDirectories = false
         panel.canCreateDirectories = false
         panel.allowsMultipleSelection = false
-        panel.allowedFileTypes = ["md"]
-        panel.message = "Select a Markdown file to preview"
-        
+        // Allow all supported file types: markdown, source code, text, html, json, etc.
+        panel.allowedFileTypes = [
+            // Markdown
+            "md", "markdown", "mdown", "mkd", "mkdn", "rmd", "qmd", "textbundle", "apib",
+            // HTML
+            "html", "htm", "xhtml",
+            // Plain text
+            "txt", "text",
+            // JSON/YAML/XML
+            "json", "yaml", "yml", "xml", "plist",
+            // Source code
+            "js", "mjs", "cjs", "jsx", "ts", "tsx",
+            "py", "pyw", "pyi",
+            "swift", "m", "mm", "h", "hpp",
+            "c", "cpp", "cc", "cxx", "c++",
+            "java", "kt", "kts", "scala", "groovy",
+            "go", "rs", "rb", "php",
+            "sh", "bash", "zsh", "fish",
+            "css", "scss", "sass", "less",
+            "sql", "graphql", "gql",
+            "r", "R", "lua", "pl", "pm",
+            "hs", "elm", "ex", "exs", "erl",
+            "cs", "fs", "vb",
+            "toml", "ini", "cfg", "conf",
+            "dockerfile", "makefile",
+            "vue", "svelte"
+        ]
+        panel.message = "Select a file to preview"
+
         let result = panel.runModal()
-        
+
         guard result.rawValue == NSApplication.ModalResponse.OK.rawValue, let src = panel.url else {
             return
         }
-        
+
         self.openMarkdown(file: src)
     }
     
@@ -775,6 +816,31 @@ class ViewController: NSViewController {
     
     @IBAction func refresh(_ sender: Any) {
         self.doRefresh(sender)
+    }
+
+    // MARK: - Settings Panel Visibility
+
+    @IBAction func toggleSettings(_ sender: Any) {
+        settingsHidden = !settingsHidden
+    }
+
+    func updateSettingsVisibility(animated: Bool) {
+        guard let constraint = tabViewHeightConstraint else { return }
+
+        let targetHeight: CGFloat = settingsHidden ? 0 : savedTabViewHeight
+
+        if animated {
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = 0.25
+                context.allowsImplicitAnimation = true
+                constraint.constant = targetHeight
+                tabView.isHidden = settingsHidden
+                view.layoutSubtreeIfNeeded()
+            }
+        } else {
+            constraint.constant = targetHeight
+            tabView.isHidden = settingsHidden
+        }
     }
 
     @IBAction func doRefresh(_ sender: Any)  {
@@ -1006,7 +1072,10 @@ document.addEventListener('scroll', function(e) {
         markdown_file = Bundle.main.url(forResource: "test1", withExtension: "md")
         
         tabView.selectTabViewItem(at: 0)
-        
+
+        // Apply settings panel visibility (defaults to hidden for viewer mode)
+        updateSettingsVisibility(animated: false)
+
         DispatchQueue.main.async {
             self.textView.setSelectedRange(NSRange(location: 0, length: 0))
         }
@@ -1206,6 +1275,8 @@ extension ViewController: NSMenuItemValidation {
     {
         if menuItem.identifier?.rawValue == "auto refresh" {
             menuItem.state = autoRefresh ? .on : .off
+        } else if menuItem.action == #selector(self.toggleSettings(_:)) {
+            menuItem.title = settingsHidden ? "Show Settings" : "Hide Settings"
         } else if menuItem.action == #selector(self.saveDocument(_:)) || menuItem.action == #selector(self.saveAction(_:)) {
             return self.isDirty
         } else if menuItem.action == #selector(self.revertDocumentToSaved(_:)) {

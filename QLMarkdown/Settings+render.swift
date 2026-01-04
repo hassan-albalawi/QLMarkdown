@@ -11,11 +11,169 @@ import SwiftSoup
 import Yams
 
 extension Settings {
+    /// File extensions that should be rendered as markdown
+    private static let markdownExtensions: Set<String> = ["md", "markdown", "mdown", "mkd", "mkdn", "rmd", "qmd", "textbundle", "apib"]
+
+    /// File extensions that should be rendered as HTML directly
+    private static let htmlExtensions: Set<String> = ["html", "htm", "xhtml"]
+
+    /// Map of file extensions to highlight language names
+    private static let codeExtensionMap: [String: String] = [
+        "js": "js", "mjs": "js", "cjs": "js",
+        "jsx": "js", "tsx": "tsx", "ts": "ts",
+        "py": "py", "pyw": "py", "pyi": "py",
+        "swift": "swift",
+        "c": "c", "h": "c",
+        "cpp": "cpp", "cc": "cpp", "cxx": "cpp", "hpp": "cpp", "hxx": "cpp",
+        "m": "objc", "mm": "objc",
+        "java": "java",
+        "go": "go",
+        "rs": "rust",
+        "rb": "rb", "rake": "rb",
+        "php": "php",
+        "pl": "pl", "pm": "pl",
+        "sh": "sh", "bash": "sh", "zsh": "sh",
+        "css": "css", "scss": "scss", "sass": "sass", "less": "less",
+        "json": "json",
+        "xml": "xml", "svg": "xml", "plist": "xml",
+        "yaml": "yaml", "yml": "yaml",
+        "sql": "sql",
+        "r": "r",
+        "lua": "lua",
+        "hs": "hs",
+        "ex": "elixir", "exs": "elixir",
+        "erl": "erlang",
+        "clj": "clj",
+        "scala": "scala",
+        "kt": "kotlin", "kts": "kotlin",
+        "groovy": "groovy",
+        "dart": "dart",
+        "vue": "vue",
+        "toml": "toml",
+        "ini": "ini", "cfg": "ini",
+        "dockerfile": "dockerfile",
+        "makefile": "makefile", "mk": "makefile",
+        "cmake": "cmake",
+        "gradle": "gradle",
+        "tf": "terraform",
+        "proto": "protobuf",
+        "graphql": "graphql", "gql": "graphql",
+        "txt": "txt"
+    ]
+
+    /// Check if a file should be treated as markdown based on its extension
+    private func isMarkdownFile(_ filename: String) -> Bool {
+        let ext = (filename as NSString).pathExtension.lowercased()
+        return Self.markdownExtensions.contains(ext) || ext.isEmpty
+    }
+
+    /// Check if a file should be rendered as HTML directly
+    private func isHTMLFile(_ filename: String) -> Bool {
+        let ext = (filename as NSString).pathExtension.lowercased()
+        return Self.htmlExtensions.contains(ext)
+    }
+
+    /// Get the highlight language for a file extension
+    private func getHighlightLanguage(for filename: String) -> String? {
+        let ext = (filename as NSString).pathExtension.lowercased()
+        return Self.codeExtensionMap[ext]
+    }
+
+    /// Render source code with syntax highlighting
+    func renderSourceCode(text: String, language: String, forAppearance appearance: Appearance) -> String {
+        if let path = getHighlightSupportPath() {
+            cmark_syntax_highlight_init("\(path)/".cString(using: .utf8))
+        }
+
+        let theme = Self.isLightAppearance ? "acid" : "zenburn"
+
+        highlight_init_generator()
+        highlight_set_print_line_numbers(self.syntaxLineNumbersOption ? 1 : 0)
+        highlight_set_formatting_mode(Int32(self.syntaxWordWrapOption), Int32(self.syntaxTabsOption))
+
+        if !self.syntaxFontFamily.isEmpty {
+            highlight_set_current_font(self.syntaxFontFamily, self.syntaxFontSize > 0 ? String(format: "%.02f", self.syntaxFontSize) : "1rem")
+        } else {
+            highlight_set_current_font("ui-monospace, -apple-system, BlinkMacSystemFont, sans-serif", "10")
+        }
+
+        // Generate complete CSS for syntax highlighting
+        // Bypass highlight_format_style2 and use theme colors directly
+        let isDark = !Self.isLightAppearance
+
+        // Zenburn (dark) vs Acid (light) theme colors
+        let bgColor = isDark ? "#1f1f1f" : "#eeeeee"
+        let fgColor = isDark ? "#dcdccc" : "#000000"
+        let numColor = isDark ? "#dca3a3" : "#800080"
+        let strColor = isDark ? "#cc9393" : "#a68500"
+        let comColor = isDark ? "#7f9f7f" : "#ff8000"
+        let ppcColor = isDark ? "#ffcfaf" : "#0080c0"
+        let kw1Color = isDark ? "#e3ceab" : "#bb7977"
+        let kw2Color = isDark ? "#dfdfbf" : "#8080c0"
+        let kw3Color = isDark ? "#aae3b2" : "#0080c0"
+        let kw4Color = isDark ? "#aabfe3" : "#004466"
+        let optColor = isDark ? "#dcdccc" : "#ff0080"
+        let escColor = isDark ? "#dca3a3" : "#ff00ff"
+
+        let preCSS = """
+        <style type="text/css">
+        pre.hl {
+            white-space: pre;
+            overflow-x: auto;
+            margin: 0;
+            padding: 1em;
+            font-family: ui-monospace, Menlo, Monaco, "Courier New", monospace;
+            font-size: 12px;
+            line-height: 1.4;
+            background-color: \(bgColor);
+            color: \(fgColor);
+        }
+        .hl.num { color: \(numColor); }
+        .hl.esc { color: \(escColor); }
+        .hl.str { color: \(strColor); }
+        .hl.pps { color: \(strColor); }
+        .hl.slc { color: \(comColor); font-style: italic; }
+        .hl.com { color: \(comColor); font-style: italic; }
+        .hl.ppc { color: \(ppcColor); }
+        .hl.opt { color: \(optColor); }
+        .hl.ipl { color: \(escColor); }
+        .hl.kwa { color: \(kw1Color); font-weight: bold; }
+        .hl.kwb { color: \(kw2Color); font-weight: bold; }
+        .hl.kwc { color: \(kw3Color); font-weight: bold; }
+        .hl.kwd { color: \(kw4Color); font-weight: bold; }
+        </style>
+        """
+
+        // colorizeCode with export_fragment=true doesn't add <pre> tags, so we must wrap it
+        if let s = colorizeCode(text, language, theme, true, self.syntaxLineNumbersOption) {
+            defer { s.deallocate() }
+            let highlighted = String(cString: s)
+            return preCSS + "<pre class='hl'>" + highlighted + "</pre>"
+        }
+
+        // Fallback: escape HTML and wrap in pre
+        let escaped = text
+            .replacingOccurrences(of: "&", with: "&amp;")
+            .replacingOccurrences(of: "<", with: "&lt;")
+            .replacingOccurrences(of: ">", with: "&gt;")
+        return preCSS + "<pre class='hl'><code>\(escaped)</code></pre>"
+    }
+
     func render(text: String, filename: String, forAppearance appearance: Appearance, baseDir: String) throws -> String {
+        // Check if file should be rendered as HTML directly
+        if isHTMLFile(filename) {
+            return text
+        }
+
+        // Check if file is source code (not markdown)
+        if !isMarkdownFile(filename), let lang = getHighlightLanguage(for: filename) {
+            return renderSourceCode(text: text, language: lang, forAppearance: appearance)
+        }
+
         if self.renderAsCode, let code = self.renderCode(text: text, forAppearance: appearance, baseDir: baseDir) {
             return code
         }
-        
+
         cmark_gfm_core_extensions_ensure_registered()
         cmark_gfm_extra_extensions_ensure_registered()
         

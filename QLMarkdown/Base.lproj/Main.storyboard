@@ -689,6 +689,12 @@
                                             </connections>
                                         </menuItem>
                                         <menuItem isSeparatorItem="YES" id="Phm-73-Kk0"/>
+                                        <menuItem title="Show Settings" keyEquivalent="0" id="QML-Hz-Set">
+                                            <modifierMask key="keyEquivalentModifierMask" command="YES"/>
+                                            <connections>
+                                                <action selector="toggleSettings:" target="Ady-hI-5gd" id="QML-Hz-Act"/>
+                                            </connections>
+                                        </menuItem>
                                         <menuItem title="Show Sidebar" keyEquivalent="s" id="kIP-vf-haE">
                                             <modifierMask key="keyEquivalentModifierMask" control="YES" command="YES"/>
                                             <connections>
@@ -1888,6 +1894,9 @@ DQ
                                         </view>
                                     </tabViewItem>
                                 </tabViewItems>
+                                <constraints>
+                                    <constraint firstAttribute="height" constant="213" id="QML-Ht-Con"/>
+                                </constraints>
                             </tabView>
                             <box verticalHuggingPriority="750" boxType="separator" translatesAutoresizingMaskIntoConstraints="NO" id="NQb-ad-sJy">
                                 <rect key="frame" x="0.0" y="689" width="1065" height="5"/>
@@ -2041,6 +2050,7 @@ DQ
                         <outlet property="stylesPopup" destination="CTX-6L-I3O" id="CPG-uQ-pRu"/>
                         <outlet property="tabView" destination="buS-Ph-8Qs" id="6nG-3b-WFz"/>
                         <outlet property="tabViewLeftConstraint" destination="dps-bL-tBT" id="zoj-C9-eWY"/>
+                        <outlet property="tabViewHeightConstraint" destination="QML-Ht-Con" id="QML-Ht-Out"/>
                         <outlet property="textView" destination="Q3Q-a2-tMH" id="Glk-S5-qdQ"/>
                         <outlet property="unsafeButton" destination="Yvy-aE-Sho" id="UmS-Os-ggW"/>
                         <outlet property="webView" destination="bs7-Op-UnU" id="zXJ-Jb-TMr"/>

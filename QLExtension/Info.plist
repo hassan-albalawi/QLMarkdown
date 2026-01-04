@@ -30,6 +30,7 @@
 			<true/>
 			<key>QLSupportedContentTypes</key>
 			<array>
+				<!-- Markdown types -->
 				<string>com.unknown.md</string>
 				<string>com.rstudio.rmarkdown</string>
 				<string>io.typora.markdown</string>
@@ -46,6 +47,86 @@
 				<string>dyn.ah62d4rv4ge8043d2</string>
 				<string>dyn.ah62d4rv4ge8043dd</string>
 				<string>dyn.ah62d4rv4ge80c6dmqk</string>
+				<!-- Generic text/source -->
+				<string>public.plain-text</string>
+				<string>public.html</string>
+				<string>public.json</string>
+				<string>public.source-code</string>
+				<string>public.script</string>
+				<string>public.data</string>
+				<!-- Swift/Objective-C -->
+				<string>com.apple.xcode.swift-source</string>
+				<string>public.objective-c-source</string>
+				<string>public.objective-c-plus-plus-source</string>
+				<!-- Python -->
+				<string>public.python-script</string>
+				<!-- Shell -->
+				<string>public.shell-script</string>
+				<string>public.bash-script</string>
+				<string>public.zsh-script</string>
+				<string>public.csh-script</string>
+				<!-- Ruby -->
+				<string>public.ruby-script</string>
+				<!-- Perl -->
+				<string>public.perl-script</string>
+				<!-- PHP -->
+				<string>public.php-script</string>
+				<!-- JavaScript/TypeScript -->
+				<string>com.netscape.javascript-source</string>
+				<string>public.javascript-source</string>
+				<string>com.microsoft.typescript-source</string>
+				<string>public.typescript-source</string>
+				<string>dyn.ah62d4rv4ge81g6pq</string>
+				<string>dyn.ah62d4rv4ge81a6xq</string>
+				<!-- C/C++ -->
+				<string>public.c-source</string>
+				<string>public.c-header</string>
+				<string>public.c-plus-plus-source</string>
+				<string>public.c-plus-plus-header</string>
+				<!-- Java -->
+				<string>com.sun.java-source</string>
+				<!-- C# -->
+				<string>com.microsoft.csharp-source</string>
+				<string>public.csharp-source</string>
+				<string>dyn.ah62d4rv4ge80s5dq</string>
+				<!-- F# -->
+				<string>com.microsoft.fsharp-source</string>
+				<string>dyn.ah62d4rv4ge80g5xr</string>
+				<!-- Visual Basic -->
+				<string>com.microsoft.vb-source</string>
+				<string>dyn.ah62d4rv4ge81k65u</string>
+				<!-- CSS/SCSS/LESS -->
+				<string>public.css</string>
+				<string>public.scss</string>
+				<string>public.less-stylesheet</string>
+				<!-- XML/YAML/Config -->
+				<string>public.xml</string>
+				<string>public.yaml</string>
+				<string>public.toml</string>
+				<string>public.ini</string>
+				<string>com.apple.property-list</string>
+				<string>com.apple.dt.document.ascii-property-list</string>
+				<string>dyn.ah62d4rv4ge80y55r</string>
+				<!-- Go -->
+				<string>org.golang.go-source</string>
+				<!-- Rust -->
+				<string>public.rust-source</string>
+				<!-- SQL -->
+				<string>public.sql</string>
+				<string>com.apple.dt.document.sql</string>
+				<string>dyn.ah62d4rv4ge81a5xr</string>
+				<!-- Lua -->
+				<string>public.lua-script</string>
+				<string>org.lua.lua-source</string>
+				<string>dyn.ah62d4rv4ge80y5dy</string>
+				<!-- R -->
+				<string>org.r-project.r</string>
+				<string>public.r-source</string>
+				<string>dyn.ah62d4rv4ge80e</string>
+				<!-- Pascal -->
+				<string>public.pascal-source</string>
+				<string>com.apple.dt.document.pascal-source</string>
+				<string>dyn.ah62d4rv4ge81c5xr</string>
 			</array>
 			<key>QLSupportsSearchableItems</key>
 			<false/>
