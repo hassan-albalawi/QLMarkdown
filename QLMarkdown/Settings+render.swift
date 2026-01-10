@@ -896,8 +896,64 @@ MathJax = {
             // Inject mermaid.min.js from bundle
             if let mermaidPath = self.resourceBundle.path(forResource: "mermaid.min", ofType: "js"),
                let mermaidJS = try? String(contentsOfFile: mermaidPath, encoding: .utf8) {
-                // Embed mermaid.js inline and initialize
+                // Embed mermaid.js inline and initialize with fullscreen/zoom support
                 s_footer += """
+<style type="text/css">
+.mermaid { cursor: zoom-in; transition: opacity 0.2s; }
+.mermaid:hover { opacity: 0.85; }
+.mermaid-overlay {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.92);
+  z-index: 9999;
+  overflow: auto;
+  justify-content: center;
+  align-items: center;
+}
+.mermaid-overlay.active { display: flex; }
+.mermaid-overlay svg {
+  max-width: 95vw;
+  max-height: 90vh;
+  transition: transform 0.15s ease-out;
+}
+.mermaid-zoom-controls {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 12px;
+  z-index: 10000;
+  background: rgba(255,255,255,0.1);
+  padding: 8px 16px;
+  border-radius: 24px;
+  backdrop-filter: blur(10px);
+}
+.mermaid-zoom-btn {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.9);
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.1s, background 0.1s;
+}
+.mermaid-zoom-btn:hover { background: #fff; transform: scale(1.1); }
+.mermaid-zoom-btn:active { transform: scale(0.95); }
+.mermaid-close-hint {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: rgba(255,255,255,0.6);
+  font-size: 13px;
+  font-family: -apple-system, sans-serif;
+}
+</style>
 <script type="text/javascript">
 \(mermaidJS)
 </script>
@@ -907,6 +963,112 @@ mermaid.initialize({
   theme: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'default',
   securityLevel: 'strict'
 });
+
+// Mermaid fullscreen and zoom functionality
+(function() {
+  // Create overlay
+  const overlay = document.createElement('div');
+  overlay.className = 'mermaid-overlay';
+  overlay.innerHTML = `
+    <div class="mermaid-close-hint">Click outside or press Escape to close • Scroll to zoom</div>
+    <div class="mermaid-zoom-controls">
+      <button class="mermaid-zoom-btn" id="mermaid-zoom-out" title="Zoom out (-)">−</button>
+      <button class="mermaid-zoom-btn" id="mermaid-zoom-reset" title="Reset zoom">⟲</button>
+      <button class="mermaid-zoom-btn" id="mermaid-zoom-in" title="Zoom in (+)">+</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  let currentZoom = 1;
+  let currentSvg = null;
+
+  // Wait for mermaid to render, then add click handlers
+  setTimeout(function() {
+    document.querySelectorAll('.mermaid').forEach(function(el) {
+      el.addEventListener('click', function() {
+        const svg = el.querySelector('svg');
+        if (svg) {
+          currentSvg = svg.cloneNode(true);
+          currentSvg.style.transform = 'scale(1)';
+          currentSvg.style.cursor = 'default';
+          currentZoom = 1;
+          overlay.insertBefore(currentSvg, overlay.firstChild);
+          overlay.classList.add('active');
+          document.body.style.overflow = 'hidden';
+        }
+      });
+    });
+  }, 500);
+
+  // Click overlay background to close
+  overlay.addEventListener('click', function(e) {
+    if (e.target === overlay) {
+      closeOverlay();
+    }
+  });
+
+  function closeOverlay() {
+    overlay.classList.remove('active');
+    document.body.style.overflow = '';
+    if (currentSvg) {
+      currentSvg.remove();
+      currentSvg = null;
+    }
+    currentZoom = 1;
+  }
+
+  function zoomIn() {
+    currentZoom = Math.min(currentZoom * 1.25, 6);
+    applyZoom();
+  }
+
+  function zoomOut() {
+    currentZoom = Math.max(currentZoom / 1.25, 0.3);
+    applyZoom();
+  }
+
+  function zoomReset() {
+    currentZoom = 1;
+    applyZoom();
+  }
+
+  function applyZoom() {
+    if (currentSvg) {
+      currentSvg.style.transform = 'scale(' + currentZoom + ')';
+    }
+  }
+
+  // Zoom controls
+  document.getElementById('mermaid-zoom-in').addEventListener('click', function(e) {
+    e.stopPropagation();
+    zoomIn();
+  });
+  document.getElementById('mermaid-zoom-out').addEventListener('click', function(e) {
+    e.stopPropagation();
+    zoomOut();
+  });
+  document.getElementById('mermaid-zoom-reset').addEventListener('click', function(e) {
+    e.stopPropagation();
+    zoomReset();
+  });
+
+  // Keyboard shortcuts
+  document.addEventListener('keydown', function(e) {
+    if (!overlay.classList.contains('active')) return;
+    if (e.key === 'Escape') closeOverlay();
+    if (e.key === '+' || e.key === '=') zoomIn();
+    if (e.key === '-' || e.key === '_') zoomOut();
+    if (e.key === '0') zoomReset();
+  });
+
+  // Mouse wheel zoom
+  overlay.addEventListener('wheel', function(e) {
+    if (!overlay.classList.contains('active')) return;
+    e.preventDefault();
+    if (e.deltaY < 0) zoomIn();
+    else zoomOut();
+  }, { passive: false });
+})();
 </script>
 """
             } else {
