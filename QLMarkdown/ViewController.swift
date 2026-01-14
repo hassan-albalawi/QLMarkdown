@@ -498,14 +498,26 @@ class ViewController: NSViewController {
                 } catch {
                     self.textView.string = "** Error loading file *\(file.path)*! **"
                 }
-                
+
                 self.startMonitorFile()
+
+                // Update window title to show filename
+                DispatchQueue.main.async {
+                    self.view.window?.title = file.lastPathComponent
+                    self.view.window?.subtitle = file.deletingLastPathComponent().path
+                    self.view.window?.representedURL = file
+                }
             } else {
                 self.textView.string = ""
+                DispatchQueue.main.async {
+                    self.view.window?.title = "QLMarkdown"
+                    self.view.window?.subtitle = ""
+                    self.view.window?.representedURL = nil
+                }
             }
             self.textView.setSelectedRange(NSRange(location: 0, length: 0))
             prev_scroll = -1
-            
+
             if isLoaded {
                 doRefresh(self)
             }
@@ -896,6 +908,13 @@ class ViewController: NSViewController {
                 splitView.setPosition(targetWidth, ofDividerAt: 0)
             }
         }
+    }
+
+    // MARK: - Open Containing Folder
+
+    @IBAction func openContainingFolder(_ sender: Any) {
+        guard let file = markdown_file else { return }
+        NSWorkspace.shared.activateFileViewerSelecting([file])
     }
 
     @IBAction func doRefresh(_ sender: Any)  {
