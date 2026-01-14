@@ -189,7 +189,6 @@ class Settings: Codable {
         } else {
             title += "QLMarkdown</a>"
         }
-        title += ".<br/>\nIf you like this app, <a href='https://www.buymeacoffee.com/sbarex'><strong>buy me a coffee</strong></a>!"
         return title
     }
     

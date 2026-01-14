@@ -521,7 +521,8 @@ extension Settings {
             cmark_node_free(doc)
         }
         
-        let about = self.about ? "<div style='font-size: 72%; margin-top: 1.5em; padding-top: .5em; -webkit-user-select: none;'><hr style='height: 0; border: none; border-top: 1px solid rgba(0,0,0,.5); box-shadow: 0 1px 1px rgba(255, 255, 255, .5)'/>\(self.app_version)</div>\n\(self.app_version2)" : ""
+        // Footer removed - preview should only show file content
+        let about = ""
         
         let html_debug = self.renderDebugInfo(forAppearance: appearance, baseDir: baseDir)
         // Render
@@ -912,10 +913,19 @@ MathJax = {
   align-items: center;
 }
 .mermaid-overlay.active { display: flex; }
-.mermaid-overlay svg {
+.mermaid-svg-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+.mermaid-svg-container svg {
   max-width: 95vw;
   max-height: 90vh;
-  transition: transform 0.15s ease-out;
+  transition: transform 0.1s ease-out;
+  transform-origin: center center;
 }
 .mermaid-zoom-controls {
   position: fixed;
@@ -970,17 +980,23 @@ mermaid.initialize({
   const overlay = document.createElement('div');
   overlay.className = 'mermaid-overlay';
   overlay.innerHTML = `
-    <div class="mermaid-close-hint">Click outside or press Escape to close • Scroll to zoom</div>
+    <div class="mermaid-close-hint">Double-click to zoom • Pinch or ⌘+scroll to zoom • Drag to pan • Esc to close</div>
+    <div class="mermaid-svg-container" id="mermaid-svg-container"></div>
     <div class="mermaid-zoom-controls">
-      <button class="mermaid-zoom-btn" id="mermaid-zoom-out" title="Zoom out (-)">−</button>
-      <button class="mermaid-zoom-btn" id="mermaid-zoom-reset" title="Reset zoom">⟲</button>
-      <button class="mermaid-zoom-btn" id="mermaid-zoom-in" title="Zoom in (+)">+</button>
+      <button class="mermaid-zoom-btn" id="mermaid-zoom-out" title="Zoom out (⌘-)">−</button>
+      <button class="mermaid-zoom-btn" id="mermaid-zoom-reset" title="Reset zoom (⌘0)">⟲</button>
+      <button class="mermaid-zoom-btn" id="mermaid-zoom-in" title="Zoom in (⌘+)">+</button>
     </div>
   `;
   document.body.appendChild(overlay);
 
+  const svgContainer = document.getElementById('mermaid-svg-container');
   let currentZoom = 1;
   let currentSvg = null;
+  let panX = 0, panY = 0;
+  let isDragging = false;
+  let dragStartX = 0, dragStartY = 0;
+  let dragStartPanX = 0, dragStartPanY = 0;
 
   // Wait for mermaid to render, then add click handlers
   setTimeout(function() {
@@ -989,10 +1005,11 @@ mermaid.initialize({
         const svg = el.querySelector('svg');
         if (svg) {
           currentSvg = svg.cloneNode(true);
-          currentSvg.style.transform = 'scale(1)';
-          currentSvg.style.cursor = 'default';
           currentZoom = 1;
-          overlay.insertBefore(currentSvg, overlay.firstChild);
+          panX = 0; panY = 0;
+          svgContainer.innerHTML = '';
+          svgContainer.appendChild(currentSvg);
+          applyTransform();
           overlay.classList.add('active');
           document.body.style.overflow = 'hidden';
         }
@@ -1000,9 +1017,9 @@ mermaid.initialize({
     });
   }, 500);
 
-  // Click overlay background to close
+  // Click overlay background to close (but not when dragging or clicking container)
   overlay.addEventListener('click', function(e) {
-    if (e.target === overlay) {
+    if (e.target === overlay && !isDragging) {
       closeOverlay();
     }
   });
@@ -1010,63 +1027,143 @@ mermaid.initialize({
   function closeOverlay() {
     overlay.classList.remove('active');
     document.body.style.overflow = '';
-    if (currentSvg) {
-      currentSvg.remove();
-      currentSvg = null;
-    }
+    svgContainer.innerHTML = '';
+    currentSvg = null;
     currentZoom = 1;
+    panX = 0; panY = 0;
   }
 
-  function zoomIn() {
-    currentZoom = Math.min(currentZoom * 1.25, 6);
-    applyZoom();
+  function zoomBy(factor) {
+    const newZoom = Math.min(Math.max(currentZoom * factor, 0.25), 8);
+    currentZoom = newZoom;
+    // Reset pan if zooming out to 1x or less
+    if (currentZoom <= 1) { panX = 0; panY = 0; }
+    applyTransform();
   }
 
-  function zoomOut() {
-    currentZoom = Math.max(currentZoom / 1.25, 0.3);
-    applyZoom();
+  function zoomTo(level) {
+    currentZoom = Math.min(Math.max(level, 0.25), 8);
+    if (currentZoom <= 1) { panX = 0; panY = 0; }
+    applyTransform();
   }
 
   function zoomReset() {
     currentZoom = 1;
-    applyZoom();
+    panX = 0; panY = 0;
+    applyTransform();
   }
 
-  function applyZoom() {
+  function toggleZoom() {
+    // Toggle between 1x and 2x (like Preview double-click)
+    if (currentZoom < 1.5) {
+      currentZoom = 2;
+    } else {
+      currentZoom = 1;
+      panX = 0; panY = 0;
+    }
+    applyTransform();
+  }
+
+  function applyTransform() {
     if (currentSvg) {
-      currentSvg.style.transform = 'scale(' + currentZoom + ')';
+      currentSvg.style.transform = 'translate(' + panX + 'px, ' + panY + 'px) scale(' + currentZoom + ')';
+      // Update cursor based on zoom level
+      svgContainer.style.cursor = currentZoom > 1 ? 'grab' : 'default';
     }
   }
+
+  // Pan/drag functionality
+  svgContainer.addEventListener('mousedown', function(e) {
+    if (currentZoom > 1) {
+      isDragging = true;
+      dragStartX = e.clientX;
+      dragStartY = e.clientY;
+      dragStartPanX = panX;
+      dragStartPanY = panY;
+      svgContainer.style.cursor = 'grabbing';
+      e.preventDefault();
+    }
+  });
+
+  document.addEventListener('mousemove', function(e) {
+    if (isDragging && currentSvg) {
+      panX = dragStartPanX + (e.clientX - dragStartX);
+      panY = dragStartPanY + (e.clientY - dragStartY);
+      applyTransform();
+      svgContainer.style.cursor = 'grabbing';
+    }
+  });
+
+  document.addEventListener('mouseup', function() {
+    if (isDragging) {
+      isDragging = false;
+      if (svgContainer && currentZoom > 1) {
+        svgContainer.style.cursor = 'grab';
+      }
+    }
+  });
 
   // Zoom controls
   document.getElementById('mermaid-zoom-in').addEventListener('click', function(e) {
     e.stopPropagation();
-    zoomIn();
+    zoomBy(1.25);
   });
   document.getElementById('mermaid-zoom-out').addEventListener('click', function(e) {
     e.stopPropagation();
-    zoomOut();
+    zoomBy(0.8);
   });
   document.getElementById('mermaid-zoom-reset').addEventListener('click', function(e) {
     e.stopPropagation();
     zoomReset();
   });
 
-  // Keyboard shortcuts
+  // Double-click to toggle zoom (like macOS Preview)
+  let lastClickTime = 0;
+  svgContainer.addEventListener('click', function(e) {
+    const now = Date.now();
+    if (now - lastClickTime < 300 && !isDragging) {
+      toggleZoom();
+    }
+    lastClickTime = now;
+  });
+
+  // Keyboard shortcuts (with Cmd key for zoom, like macOS)
   document.addEventListener('keydown', function(e) {
     if (!overlay.classList.contains('active')) return;
     if (e.key === 'Escape') closeOverlay();
-    if (e.key === '+' || e.key === '=') zoomIn();
-    if (e.key === '-' || e.key === '_') zoomOut();
-    if (e.key === '0') zoomReset();
+    // Cmd+Plus / Cmd+Equals to zoom in
+    if ((e.metaKey || e.ctrlKey) && (e.key === '+' || e.key === '=')) {
+      e.preventDefault();
+      zoomBy(1.25);
+    }
+    // Cmd+Minus to zoom out
+    if ((e.metaKey || e.ctrlKey) && (e.key === '-' || e.key === '_')) {
+      e.preventDefault();
+      zoomBy(0.8);
+    }
+    // Cmd+0 to reset zoom
+    if ((e.metaKey || e.ctrlKey) && e.key === '0') {
+      e.preventDefault();
+      zoomReset();
+    }
   });
 
-  // Mouse wheel zoom
+  // Pinch-to-zoom (trackpad) and Cmd+scroll (mouse wheel)
+  // On macOS, pinch gestures send wheel events with ctrlKey=true
   overlay.addEventListener('wheel', function(e) {
     if (!overlay.classList.contains('active')) return;
-    e.preventDefault();
-    if (e.deltaY < 0) zoomIn();
-    else zoomOut();
+
+    // Pinch gesture (ctrlKey) or Cmd+scroll (metaKey)
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      // Use deltaY for smooth continuous zoom
+      // Smaller factor for smoother pinch zoom
+      const factor = e.ctrlKey ?
+        Math.pow(1.01, -e.deltaY) :  // Pinch: very smooth
+        (e.deltaY < 0 ? 1.1 : 0.9);   // Cmd+scroll: step zoom
+      zoomBy(factor);
+    }
+    // Regular scroll without modifiers does nothing (natural behavior)
   }, { passive: false });
 })();
 </script>
@@ -1075,6 +1172,238 @@ mermaid.initialize({
                 os_log("Could not load mermaid.min.js from bundle", log: OSLog.rendering, type: .error)
             }
         }
+
+        // Search/find bar functionality for preview
+        s_header += """
+<style type="text/css">
+.search-bar {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: rgba(50, 50, 50, 0.95);
+  padding: 8px 12px;
+  z-index: 10001;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.search-bar.active { display: flex; align-items: center; gap: 10px; }
+.search-bar input {
+  flex: 1;
+  max-width: 400px;
+  padding: 6px 12px;
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 6px;
+  background: rgba(255,255,255,0.1);
+  color: #fff;
+  font-size: 14px;
+  outline: none;
+}
+.search-bar input:focus { border-color: rgba(100,150,255,0.6); }
+.search-bar input::placeholder { color: rgba(255,255,255,0.5); }
+.search-bar-info {
+  color: rgba(255,255,255,0.7);
+  font-size: 13px;
+  font-family: -apple-system, sans-serif;
+  min-width: 80px;
+}
+.search-bar-btn {
+  background: rgba(255,255,255,0.15);
+  border: none;
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.search-bar-btn:hover { background: rgba(255,255,255,0.25); }
+.search-bar-close {
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.6);
+  font-size: 20px;
+  cursor: pointer;
+  padding: 4px 8px;
+  line-height: 1;
+}
+.search-bar-close:hover { color: #fff; }
+.search-highlight {
+  background-color: rgba(255, 230, 0, 0.4) !important;
+  border-radius: 2px;
+}
+.search-highlight-current {
+  background-color: rgba(255, 150, 0, 0.7) !important;
+  border-radius: 2px;
+}
+</style>
+"""
+        s_footer += """
+<div class="search-bar" id="search-bar">
+  <input type="text" id="search-input" placeholder="Find in preview..." autocomplete="off">
+  <span class="search-bar-info" id="search-info"></span>
+  <button class="search-bar-btn" id="search-prev" title="Previous (Shift+Enter)">▲</button>
+  <button class="search-bar-btn" id="search-next" title="Next (Enter)">▼</button>
+  <button class="search-bar-close" id="search-close" title="Close (Escape)">×</button>
+</div>
+<script type="text/javascript">
+(function() {
+  const searchBar = document.getElementById('search-bar');
+  const searchInput = document.getElementById('search-input');
+  const searchInfo = document.getElementById('search-info');
+  let highlights = [];
+  let currentIndex = -1;
+  let originalHTML = null;
+
+  function escapeRegExp(string) {
+    return string.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');
+  }
+
+  function clearHighlights() {
+    highlights.forEach(function(el) {
+      const parent = el.parentNode;
+      if (parent) {
+        parent.replaceChild(document.createTextNode(el.textContent), el);
+        parent.normalize();
+      }
+    });
+    highlights = [];
+    currentIndex = -1;
+    searchInfo.textContent = '';
+  }
+
+  function highlightMatches(searchText) {
+    clearHighlights();
+    if (!searchText || searchText.length < 1) return;
+
+    const walker = document.createTreeWalker(
+      document.body,
+      NodeFilter.SHOW_TEXT,
+      {
+        acceptNode: function(node) {
+          // Skip search bar, scripts, styles
+          const parent = node.parentElement;
+          if (!parent) return NodeFilter.FILTER_REJECT;
+          const tag = parent.tagName;
+          if (tag === 'SCRIPT' || tag === 'STYLE' || parent.closest('.search-bar')) {
+            return NodeFilter.FILTER_REJECT;
+          }
+          return NodeFilter.FILTER_ACCEPT;
+        }
+      }
+    );
+
+    const textNodes = [];
+    while (walker.nextNode()) textNodes.push(walker.currentNode);
+
+    const searchLower = searchText.toLowerCase();
+    textNodes.forEach(function(node) {
+      const text = node.textContent;
+      const textLower = text.toLowerCase();
+      let idx = textLower.indexOf(searchLower);
+      if (idx === -1) return;
+
+      const fragment = document.createDocumentFragment();
+      let lastIdx = 0;
+      while (idx !== -1) {
+        if (idx > lastIdx) {
+          fragment.appendChild(document.createTextNode(text.substring(lastIdx, idx)));
+        }
+        const span = document.createElement('span');
+        span.className = 'search-highlight';
+        span.textContent = text.substring(idx, idx + searchText.length);
+        fragment.appendChild(span);
+        highlights.push(span);
+        lastIdx = idx + searchText.length;
+        idx = textLower.indexOf(searchLower, lastIdx);
+      }
+      if (lastIdx < text.length) {
+        fragment.appendChild(document.createTextNode(text.substring(lastIdx)));
+      }
+      node.parentNode.replaceChild(fragment, node);
+    });
+
+    if (highlights.length > 0) {
+      currentIndex = 0;
+      updateCurrentHighlight();
+      searchInfo.textContent = '1 of ' + highlights.length;
+    } else {
+      searchInfo.textContent = 'No matches';
+    }
+  }
+
+  function updateCurrentHighlight() {
+    highlights.forEach(function(el, i) {
+      if (i === currentIndex) {
+        el.className = 'search-highlight-current';
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } else {
+        el.className = 'search-highlight';
+      }
+    });
+  }
+
+  function goToNext() {
+    if (highlights.length === 0) return;
+    currentIndex = (currentIndex + 1) % highlights.length;
+    updateCurrentHighlight();
+    searchInfo.textContent = (currentIndex + 1) + ' of ' + highlights.length;
+  }
+
+  function goToPrev() {
+    if (highlights.length === 0) return;
+    currentIndex = (currentIndex - 1 + highlights.length) % highlights.length;
+    updateCurrentHighlight();
+    searchInfo.textContent = (currentIndex + 1) + ' of ' + highlights.length;
+  }
+
+  function openSearchBar() {
+    searchBar.classList.add('active');
+    searchInput.focus();
+    searchInput.select();
+  }
+
+  function closeSearchBar() {
+    searchBar.classList.remove('active');
+    clearHighlights();
+  }
+
+  // Cmd+F to open search bar
+  document.addEventListener('keydown', function(e) {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
+      e.preventDefault();
+      openSearchBar();
+    }
+    if (e.key === 'Escape' && searchBar.classList.contains('active')) {
+      closeSearchBar();
+    }
+  });
+
+  // Search input handlers
+  let debounceTimer;
+  searchInput.addEventListener('input', function() {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(function() {
+      highlightMatches(searchInput.value);
+    }, 150);
+  });
+
+  searchInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (e.shiftKey) goToPrev();
+      else goToNext();
+    }
+  });
+
+  // Button handlers
+  document.getElementById('search-next').addEventListener('click', goToNext);
+  document.getElementById('search-prev').addEventListener('click', goToPrev);
+  document.getElementById('search-close').addEventListener('click', closeSearchBar);
+})();
+</script>
+"""
 
         let style = css_doc + css_highlight + css_doc_extended
         let wrapper_open = self.renderAsCode ? "<pre class='hl'>" : "<article class='markdown-body'>"

@@ -452,7 +452,22 @@ class ViewController: NSViewController {
     }
 
     private var savedTabViewHeight: CGFloat = 213
-    
+
+    @IBOutlet weak var splitView: NSSplitView!
+    @IBOutlet weak var editorContainerView: NSView!
+
+    /// Whether the editor panel is hidden (preview-only mode) - defaults to true
+    var editorHidden: Bool {
+        get {
+            // Use "editor-shown" key so default (false) means hidden
+            return !UserDefaults.standard.bool(forKey: "qlmarkdown-editor-shown")
+        }
+        set {
+            UserDefaults.standard.set(!newValue, forKey: "qlmarkdown-editor-shown")
+            updateEditorVisibility(animated: true)
+        }
+    }
+
     @IBOutlet weak var webView: WKWebView!
     @IBOutlet weak var textView: NSTextView!
     @IBOutlet weak var stylesPopup: NSPopUpButton!
@@ -843,6 +858,46 @@ class ViewController: NSViewController {
         }
     }
 
+    // MARK: - Editor Panel Visibility
+
+    @IBAction func toggleEditor(_ sender: Any) {
+        editorHidden = !editorHidden
+    }
+
+    func updateEditorVisibility(animated: Bool) {
+        guard let splitView = splitView, let editorView = editorContainerView else { return }
+
+        if editorHidden {
+            // Hide editor - collapse to 0 width
+            if animated {
+                NSAnimationContext.runAnimationGroup { context in
+                    context.duration = 0.25
+                    context.allowsImplicitAnimation = true
+                    splitView.setPosition(0, ofDividerAt: 0)
+                    editorView.isHidden = true
+                    view.layoutSubtreeIfNeeded()
+                }
+            } else {
+                splitView.setPosition(0, ofDividerAt: 0)
+                editorView.isHidden = true
+            }
+        } else {
+            // Show editor - restore to half width
+            editorView.isHidden = false
+            let targetWidth = splitView.bounds.width / 2
+            if animated {
+                NSAnimationContext.runAnimationGroup { context in
+                    context.duration = 0.25
+                    context.allowsImplicitAnimation = true
+                    splitView.setPosition(targetWidth, ofDividerAt: 0)
+                    view.layoutSubtreeIfNeeded()
+                }
+            } else {
+                splitView.setPosition(targetWidth, ofDividerAt: 0)
+            }
+        }
+    }
+
     @IBAction func doRefresh(_ sender: Any)  {
         progressIndicator.startAnimation(self)
         
@@ -1076,6 +1131,9 @@ document.addEventListener('scroll', function(e) {
         // Apply settings panel visibility (defaults to hidden for viewer mode)
         updateSettingsVisibility(animated: false)
 
+        // Apply editor panel visibility (defaults to hidden for preview-only mode)
+        updateEditorVisibility(animated: false)
+
         DispatchQueue.main.async {
             self.textView.setSelectedRange(NSRange(location: 0, length: 0))
         }
@@ -1277,6 +1335,8 @@ extension ViewController: NSMenuItemValidation {
             menuItem.state = autoRefresh ? .on : .off
         } else if menuItem.action == #selector(self.toggleSettings(_:)) {
             menuItem.title = settingsHidden ? "Show Settings" : "Hide Settings"
+        } else if menuItem.action == #selector(self.toggleEditor(_:)) {
+            menuItem.title = editorHidden ? "Show Editor" : "Hide Editor"
         } else if menuItem.action == #selector(self.saveDocument(_:)) || menuItem.action == #selector(self.saveAction(_:)) {
             return self.isDirty
         } else if menuItem.action == #selector(self.revertDocumentToSaved(_:)) {

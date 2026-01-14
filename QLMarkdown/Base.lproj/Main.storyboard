@@ -75,13 +75,6 @@
                                                 <action selector="revealCLITool:" target="Voe-Tx-rLC" id="a9e-gM-h4J"/>
                                             </connections>
                                         </menuItem>
-                                        <menuItem title="Buy me a coffee…" id="cHz-XF-UAt">
-                                            <modifierMask key="keyEquivalentModifierMask"/>
-                                            <connections>
-                                                <action selector="buyMeACoffee:" target="Ady-hI-5gd" id="SB1-Ng-Bb0"/>
-                                            </connections>
-                                        </menuItem>
-                                        <menuItem isSeparatorItem="YES" id="VOq-y0-SEH"/>
                                         <menuItem title="Preferences…" keyEquivalent="," id="BOF-NM-1cW"/>
                                         <menuItem isSeparatorItem="YES" id="wFC-TO-SCJ"/>
                                         <menuItem title="Services" id="NMo-om-nkz">
@@ -695,6 +688,12 @@
                                                 <action selector="toggleSettings:" target="Ady-hI-5gd" id="QML-Hz-Act"/>
                                             </connections>
                                         </menuItem>
+                                        <menuItem title="Show Editor" keyEquivalent="e" id="QML-Ed-Tog">
+                                            <modifierMask key="keyEquivalentModifierMask" command="YES"/>
+                                            <connections>
+                                                <action selector="toggleEditor:" target="Ady-hI-5gd" id="QML-Ed-Act"/>
+                                            </connections>
+                                        </menuItem>
                                         <menuItem title="Show Sidebar" keyEquivalent="s" id="kIP-vf-haE">
                                             <modifierMask key="keyEquivalentModifierMask" control="YES" command="YES"/>
                                             <connections>
@@ -774,10 +773,10 @@
                             <allowedToolbarItems>
                                 <toolbarItem implicitItemIdentifier="NSToolbarSpaceItem" id="OkB-Ti-gMh"/>
                                 <toolbarItem implicitItemIdentifier="NSToolbarFlexibleSpaceItem" id="6pH-Qf-g7v"/>
-                                <toolbarItem implicitItemIdentifier="D6465400-1A21-458E-AAE1-53943BDD0C27" label="Buy me a coffee" paletteLabel="Buy me a coffee" tag="-1" sizingBehavior="auto" id="the-Rm-DRx">
-                                    <imageReference key="image" image="cup.and.saucer" catalog="system" symbolScale="large"/>
+                                <toolbarItem implicitItemIdentifier="D6465400-1A21-458E-AAE1-53943BDD0C27" label="Toggle Editor" paletteLabel="Toggle Editor" tag="-1" sizingBehavior="auto" id="the-Rm-DRx">
+                                    <imageReference key="image" image="sidebar.left" catalog="system" symbolScale="large"/>
                                     <connections>
-                                        <action selector="buyMeACoffee:" target="Oky-zY-oP4" id="b19-xY-Uuw"/>
+                                        <action selector="toggleEditor:" target="Ady-hI-5gd" id="QML-TB-Act"/>
                                     </connections>
                                 </toolbarItem>
                             </allowedToolbarItems>
@@ -2055,6 +2054,8 @@ DQ
                         <outlet property="unsafeButton" destination="Yvy-aE-Sho" id="UmS-Os-ggW"/>
                         <outlet property="webView" destination="bs7-Op-UnU" id="zXJ-Jb-TMr"/>
                         <outlet property="yamlPopupButton" destination="IeG-vS-v6c" id="PgQ-PL-hNI"/>
+                        <outlet property="splitView" destination="RbX-Sy-Yvt" id="QML-Sp-Out"/>
+                        <outlet property="editorContainerView" destination="GDJ-WJ-HAB" id="QML-Ed-Out"/>
                     </connections>
                 </viewController>
                 <customObject id="rPt-NT-nkU" userLabel="First Responder" customClass="NSResponder" sceneMemberID="firstResponder"/>
