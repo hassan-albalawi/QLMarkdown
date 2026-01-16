@@ -612,8 +612,8 @@ class ViewController: NSViewController {
             }
         }
         self.markdown_file = file
-        // Track in recent documents
-        NSDocumentController.shared.noteNewRecentDocumentURL(file)
+        // Track in recent files
+        (NSApp.delegate as? AppDelegate)?.addToRecentFiles(file)
         return true
     }
     

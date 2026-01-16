@@ -8,15 +8,64 @@
 import Cocoa
 import Sparkle
 
+// MARK: - Recent Files Manager
+class RecentFilesManager {
+    static let shared = RecentFilesManager()
+    private let key = "qlmarkdown-recent-files"
+    private let maxRecentFiles = 10
+
+    private init() {}
+
+    var recentFiles: [URL] {
+        get {
+            guard let bookmarks = UserDefaults.standard.array(forKey: key) as? [Data] else {
+                return []
+            }
+            return bookmarks.compactMap { data in
+                var isStale = false
+                guard let url = try? URL(resolvingBookmarkData: data, options: .withSecurityScope, relativeTo: nil, bookmarkDataIsStale: &isStale) else {
+                    return nil
+                }
+                // Skip stale bookmarks to files that no longer exist
+                if isStale || !FileManager.default.fileExists(atPath: url.path) {
+                    return nil
+                }
+                return url
+            }
+        }
+        set {
+            let bookmarks = newValue.prefix(maxRecentFiles).compactMap { url -> Data? in
+                try? url.bookmarkData(options: .withSecurityScope, includingResourceValuesForKeys: nil, relativeTo: nil)
+            }
+            UserDefaults.standard.set(bookmarks, forKey: key)
+        }
+    }
+
+    func addRecentFile(_ url: URL) {
+        var files = recentFiles
+        // Remove if already exists (will be re-added at top)
+        files.removeAll { $0.path == url.path }
+        // Add to beginning
+        files.insert(url, at: 0)
+        // Store (will be trimmed to maxRecentFiles)
+        recentFiles = files
+    }
+
+    func clearRecentFiles() {
+        UserDefaults.standard.removeObject(forKey: key)
+    }
+}
+
 @main
 class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     var userDriver: SPUStandardUserDriver?
     var updater: SPUUpdater?
-    
+    @IBOutlet weak var recentFilesMenu: NSMenu?
+
     func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool {
         return true
     }
-    
+
     func application(_ sender: NSApplication, openFile filename: String) -> Bool {
         let file = URL(fileURLWithPath: filename)
         return openFileInNewWindow(file)
@@ -34,12 +83,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         // Show the window first, then open the file
         windowController.showWindow(nil)
 
-        // Open the file and track in recent documents
+        // Open the file and track in recent files
         let result = controller.openMarkdown(file: file)
-        if result {
-            NSDocumentController.shared.noteNewRecentDocumentURL(file)
-        }
         return result
+    }
+
+    /// Adds a file to recent files list
+    func addToRecentFiles(_ url: URL) {
+        RecentFilesManager.shared.addRecentFile(url)
     }
     
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
@@ -171,6 +222,48 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             return
         }
         windowController.showWindow(nil)
+    }
+
+    /// Opens a recent file
+    @IBAction func openRecentFile(_ sender: NSMenuItem) {
+        guard let url = sender.representedObject as? URL else { return }
+        openFileInNewWindow(url)
+    }
+
+    /// Clears the recent files list
+    @IBAction func clearRecentFiles(_ sender: Any?) {
+        RecentFilesManager.shared.clearRecentFiles()
+    }
+}
+
+// MARK: - NSMenuDelegate for Recent Files
+extension AppDelegate: NSMenuDelegate {
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        guard menu == recentFilesMenu else { return }
+
+        // Remove all items except "Clear Menu" (last item)
+        while menu.items.count > 1 {
+            menu.removeItem(at: 0)
+        }
+
+        let recentFiles = RecentFilesManager.shared.recentFiles
+
+        if recentFiles.isEmpty {
+            let emptyItem = NSMenuItem(title: "No Recent Files", action: nil, keyEquivalent: "")
+            emptyItem.isEnabled = false
+            menu.insertItem(emptyItem, at: 0)
+            menu.insertItem(NSMenuItem.separator(), at: 1)
+        } else {
+            for (index, url) in recentFiles.enumerated() {
+                let item = NSMenuItem(title: url.lastPathComponent, action: #selector(openRecentFile(_:)), keyEquivalent: "")
+                item.target = self
+                item.representedObject = url
+                // Show full path in tooltip
+                item.toolTip = url.path
+                menu.insertItem(item, at: index)
+            }
+            menu.insertItem(NSMenuItem.separator(), at: recentFiles.count)
+        }
     }
 }
 

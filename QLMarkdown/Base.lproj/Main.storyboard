@@ -124,15 +124,18 @@
                                         </menuItem>
                                         <menuItem title="Open Recent" id="tXI-mr-wws">
                                             <modifierMask key="keyEquivalentModifierMask"/>
-                                            <menu key="submenu" title="Open Recent" systemMenu="recentDocumentsMenu" id="oas-Oc-wgT">
+                                            <menu key="submenu" title="Open Recent" id="oas-Oc-wgT">
                                                 <items>
                                                     <menuItem title="Clear Menu" id="vNY-rz-j42">
                                                         <modifierMask key="keyEquivalentModifierMask"/>
                                                         <connections>
-                                                            <action selector="clearRecentDocuments:" target="-1" id="Daa-9d-B3U"/>
+                                                            <action selector="clearRecentFiles:" target="Voe-Tx-rLC" id="QML-CR-Act"/>
                                                         </connections>
                                                     </menuItem>
                                                 </items>
+                                                <connections>
+                                                    <outlet property="delegate" destination="Voe-Tx-rLC" id="QML-RD-Del"/>
+                                                </connections>
                                             </menu>
                                         </menuItem>
                                         <menuItem title="Open the README.md" alternate="YES" id="wwr-7a-2m9">
@@ -773,7 +776,11 @@
                         <outlet property="delegate" destination="Voe-Tx-rLC" id="PrD-fu-P6m"/>
                     </connections>
                 </application>
-                <customObject id="Voe-Tx-rLC" customClass="AppDelegate" customModule="QLMarkdown" customModuleProvider="target"/>
+                <customObject id="Voe-Tx-rLC" customClass="AppDelegate" customModule="QLMarkdown" customModuleProvider="target">
+                    <connections>
+                        <outlet property="recentFilesMenu" destination="oas-Oc-wgT" id="QML-RF-Out"/>
+                    </connections>
+                </customObject>
                 <customObject id="YLy-65-1bz" customClass="NSFontManager"/>
                 <customObject id="Ady-hI-5gd" userLabel="First Responder" customClass="NSResponder" sceneMemberID="firstResponder"/>
             </objects>
