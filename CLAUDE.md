@@ -107,5 +107,53 @@ brew install cmake     # For cmark-gfm
 
 Push changes to `private` remote:
 ```bash
-git push private feature/multi-format-viewer
+git push private main
 ```
+
+## Development Workflow (Automated by Claude)
+
+When the user asks to add a feature or fix a bug, Claude should handle the entire workflow automatically:
+
+### 1. Before Starting Work
+```bash
+# Ensure on main branch and up to date
+git checkout main
+git pull private main
+```
+
+### 2. Implement the Feature
+- Make code changes
+- Build and test: `osascript -e 'quit app "QLMarkdown"' && xcodebuild -scheme "QLMardown" -configuration Release -derivedDataPath build build`
+- Install and verify: `rm -rf /Applications/QLMarkdown.app && cp -R build/Build/Products/Release/QLMarkdown.app /Applications/ && open /Applications/QLMarkdown.app`
+
+### 3. Commit and Push
+```bash
+git add -A
+git commit -m "Feature/fix description
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>"
+git push private main
+```
+
+### 4. Update Documentation (if significant feature)
+- **CHANGELOG.md**: Add entry under current version section at top
+- **TODO.md**: Mark items as completed or add new items
+- **README.md**: Update if user-facing feature documentation needed
+
+### Commit Message Format
+```
+<type>: <short description>
+
+<optional body with details>
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+```
+
+Types: `Add`, `Fix`, `Update`, `Remove`, `Refactor`, `Docs`
+
+### Key Principles
+- Work directly on `main` branch (no feature branches needed for this private fork)
+- Always push to `private` remote (not `origin`)
+- Build and test before committing
+- Update CHANGELOG.md for any user-visible changes
+- Commit frequently with descriptive messages

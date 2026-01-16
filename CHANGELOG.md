@@ -1,6 +1,33 @@
 # Changelog
 
 
+### 1.1.0-Mermaid (49) - Private Fork
+**New Features:**
+- **Mermaid Diagram Support**: Render Mermaid diagrams directly in Quick Look preview
+  - Fullscreen viewer (click diagram to expand)
+  - Natural macOS zoom: pinch-to-zoom, double-click toggle, ⌘+scroll
+  - Pan/drag when zoomed in
+  - Bundled mermaid.min.js v10.9.3 (no network required)
+- **Multi-format File Viewer**: Preview 50+ programming languages with syntax highlighting
+  - Added UTIs for .cs, .fsx, .ini, .lua, .pas, .r, .sql, .ts, .vb, and more
+  - Custom CSS theme (zenburn/acid) for better visibility
+- **Search in Preview**: ⌘F opens find bar with match highlighting and navigation
+- **Viewer Mode**: Editor hidden by default for clean preview-only experience
+  - Toggle Editor: ⌘E or toolbar button
+- **Show in Finder**: Toolbar button to reveal file in Finder
+- **Window Title**: Shows filename and folder path with standard macOS path menu
+
+**UI Changes:**
+- Replaced "Buy me a coffee" toolbar button with "Toggle Editor"
+- Removed footer (version/developer info) from preview
+- Removed "Buy me a coffee" menu item
+- Settings panel hidden by default
+
+**Technical:**
+- Custom syntax highlighting CSS bypasses highlight library bugs
+- State persistence for editor/settings visibility
+
+
 ### 1.0.23 (49)
 Bugfix:
 - Unable to save the settings.
