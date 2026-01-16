@@ -612,6 +612,8 @@ class ViewController: NSViewController {
             }
         }
         self.markdown_file = file
+        // Track in recent documents
+        NSDocumentController.shared.noteNewRecentDocumentURL(file)
         return true
     }
     
@@ -653,7 +655,7 @@ class ViewController: NSViewController {
             "dockerfile", "makefile",
             "vue", "svelte"
         ]
-        panel.message = "Select a file to preview"
+        panel.message = "Select a file to preview (hold Option to open in new window)"
 
         let result = panel.runModal()
 
@@ -661,7 +663,12 @@ class ViewController: NSViewController {
             return
         }
 
-        self.openMarkdown(file: src)
+        // Check if Option key is held to open in new window
+        if NSEvent.modifierFlags.contains(.option) {
+            (NSApp.delegate as? AppDelegate)?.openFileInNewWindow(src)
+        } else {
+            self.openMarkdown(file: src)
+        }
     }
     
     @IBAction func exportMarkdown(_ sender: Any) {

@@ -18,6 +18,8 @@
 - [x] Filename in window title bar
 - [x] Fix syntax highlighting visibility (custom CSS theme)
 - [x] Remove "Buy me a coffee" references
+- [x] Recent files history (File > Open Recent)
+- [x] Multiple windows support (⌘N, Option+Open)
 
 ## Completed (upstream)
 - [x] Check code signature and app group access (bypassed using an XPC process)

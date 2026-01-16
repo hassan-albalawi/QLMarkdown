@@ -18,12 +18,28 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
     
     func application(_ sender: NSApplication, openFile filename: String) -> Bool {
-        guard let controller = sender.windows.first(where: {$0.windowController?.contentViewController is ViewController })?.windowController?.contentViewController as? ViewController else {
+        let file = URL(fileURLWithPath: filename)
+        return openFileInNewWindow(file)
+    }
+
+    /// Opens a file in a new window
+    @discardableResult
+    func openFileInNewWindow(_ file: URL) -> Bool {
+        let storyboard = NSStoryboard(name: "Main", bundle: nil)
+        guard let windowController = storyboard.instantiateController(withIdentifier: "PreferencesWindowController") as? PreferencesWindowController,
+              let controller = windowController.contentViewController as? ViewController else {
             return false
         }
-        let file = URL(fileURLWithPath: filename)
-        // Accept any file type registered in Info.plist CFBundleDocumentTypes
-        return controller.openMarkdown(file: file)
+
+        // Show the window first, then open the file
+        windowController.showWindow(nil)
+
+        // Open the file and track in recent documents
+        let result = controller.openMarkdown(file: file)
+        if result {
+            NSDocumentController.shared.noteNewRecentDocumentURL(file)
+        }
+        return result
     }
     
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
@@ -146,6 +162,15 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     @IBAction func buyMeACoffee(_ sender: Any?) {
         let url = URL(string: "https://www.buymeacoffee.com/sbarex")!
         NSWorkspace.shared.open(url)
+    }
+
+    /// Creates a new window
+    @IBAction func newWindow(_ sender: Any?) {
+        let storyboard = NSStoryboard(name: "Main", bundle: nil)
+        guard let windowController = storyboard.instantiateController(withIdentifier: "PreferencesWindowController") as? PreferencesWindowController else {
+            return
+        }
+        windowController.showWindow(nil)
     }
 }
 

@@ -16,6 +16,8 @@
   - Toggle Editor: ⌘E or toolbar button
 - **Show in Finder**: Toolbar button to reveal file in Finder
 - **Window Title**: Shows filename and folder path with standard macOS path menu
+- **Recent Files**: File > Open Recent tracks previously viewed files
+- **Multiple Windows**: Open files in new windows (⌘N for new window, Option+Open for new window from file picker)
 
 **UI Changes:**
 - Replaced "Buy me a coffee" toolbar button with "Toggle Editor"
