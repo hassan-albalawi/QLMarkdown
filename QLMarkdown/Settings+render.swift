@@ -513,25 +513,40 @@ extension Settings {
             }
         }
         
-        cmark_parser_feed(parser, md_text, strlen(md_text))
+        // Extract mermaid blocks BEFORE cmark processing to preserve newlines
+        // The syntaxhighlight extension can corrupt mermaid content
+        var mermaidBlocks: [String: String] = [:]
+        var processedText = md_text
+        if self.mermaidExtension {
+            (processedText, mermaidBlocks) = extractMermaidBlocks(md_text)
+        }
+
+        cmark_parser_feed(parser, processedText, strlen(processedText))
         guard let doc = cmark_parser_finish(parser) else {
             throw CMARK_Error.parser_parse
         }
         defer {
             cmark_node_free(doc)
         }
-        
+
         // Footer removed - preview should only show file content
         let about = ""
-        
+
         let html_debug = self.renderDebugInfo(forAppearance: appearance, baseDir: baseDir)
         // Render
         if let html2 = cmark_render_html(doc, options, cmark_parser_get_syntax_extensions(parser)) {
             defer {
                 free(html2)
             }
-            
-            return html_debug + header + String(cString: html2) + about
+
+            var renderedHtml = String(cString: html2)
+
+            // Restore mermaid blocks with original content (preserving newlines)
+            if self.mermaidExtension && !mermaidBlocks.isEmpty {
+                renderedHtml = restoreMermaidBlocks(renderedHtml, blocks: mermaidBlocks)
+            }
+
+            return html_debug + header + renderedHtml + about
         } else {
             return html_debug + "<p>RENDER FAILED!</p>"
         }
@@ -889,17 +904,34 @@ MathJax = {
         }
 
         // Mermaid diagrams support
+        // Mermaid blocks are now pre-processed in render() to preserve newlines
+        // Check for pre.mermaid elements (from pre-processing) or language-mermaid (legacy)
         var processedBody = body
-        if !self.renderAsCode, self.mermaidExtension, body.contains("language-mermaid") {
-            // Transform mermaid code blocks to mermaid divs
-            processedBody = transformMermaidBlocks(body)
+        let hasMermaid = body.contains("class=\"mermaid\"") || body.contains("language-mermaid")
+        if !self.renderAsCode, self.mermaidExtension, hasMermaid {
+            // If there are still language-mermaid blocks (shouldn't happen with new flow),
+            // transform them as fallback
+            if body.contains("language-mermaid") {
+                processedBody = transformMermaidBlocks(body)
+            }
 
             // Inject mermaid.min.js from bundle
             if let mermaidPath = self.resourceBundle.path(forResource: "mermaid.min", ofType: "js"),
                let mermaidJS = try? String(contentsOfFile: mermaidPath, encoding: .utf8) {
-                // Embed mermaid.js inline and initialize with fullscreen/zoom support
+                // Embed mermaid.js inline
+                s_footer += "<script type=\"text/javascript\">\n\(mermaidJS)\n</script>\n"
                 s_footer += """
 <style type="text/css">
+/* Reset pre styling for mermaid elements - they render as SVG */
+pre.mermaid {
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font-family: inherit;
+  white-space: pre;
+  overflow: visible;
+}
 .mermaid { cursor: zoom-in; transition: opacity 0.2s; }
 .mermaid:hover { opacity: 0.85; }
 .mermaid-overlay {
@@ -924,8 +956,22 @@ MathJax = {
 .mermaid-svg-container svg {
   max-width: 95vw;
   max-height: 90vh;
-  transition: transform 0.1s ease-out;
   transform-origin: center center;
+}
+/* Enable text selection in zoomed SVG */
+.mermaid-svg-container svg text,
+.mermaid-svg-container svg tspan,
+.mermaid-svg-container svg foreignObject {
+  cursor: text !important;
+  user-select: text !important;
+  -webkit-user-select: text !important;
+  pointer-events: auto !important;
+}
+.mermaid-svg-container.selecting {
+  cursor: text !important;
+}
+.mermaid-svg-container.selecting svg {
+  cursor: text !important;
 }
 .mermaid-zoom-controls {
   position: fixed;
@@ -965,13 +1011,22 @@ MathJax = {
 }
 </style>
 <script type="text/javascript">
-\(mermaidJS)
-</script>
-<script type="text/javascript">
+console.log('Mermaid version:', mermaid.version);
+console.log('Mermaid diagrams:', Object.keys(mermaid.diagrams || {}));
+
 mermaid.initialize({
   startOnLoad: true,
   theme: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'default',
-  securityLevel: 'strict'
+  securityLevel: 'loose',
+  logLevel: 'debug'
+});
+
+// Debug: log mermaid div contents with full detail
+document.querySelectorAll('.mermaid').forEach((el, i) => {
+  console.log('Mermaid block ' + i + ' innerHTML:', el.innerHTML.substring(0, 300));
+  console.log('Mermaid block ' + i + ' textContent:', el.textContent.substring(0, 300));
+  // Check for newlines
+  console.log('Has newlines:', el.textContent.includes('\\n'), 'Has actual newlines:', /[\\r\\n]/.test(el.textContent));
 });
 
 // Mermaid fullscreen and zoom functionality
@@ -980,7 +1035,7 @@ mermaid.initialize({
   const overlay = document.createElement('div');
   overlay.className = 'mermaid-overlay';
   overlay.innerHTML = `
-    <div class="mermaid-close-hint">Double-click to zoom • Pinch or ⌘+scroll to zoom • Drag to pan • Esc to close</div>
+    <div class="mermaid-close-hint">Select text to copy • Double-click to zoom • Hold Space+drag to pan • Esc to close</div>
     <div class="mermaid-svg-container" id="mermaid-svg-container"></div>
     <div class="mermaid-zoom-controls">
       <button class="mermaid-zoom-btn" id="mermaid-zoom-out" title="Zoom out (⌘-)">−</button>
@@ -993,10 +1048,12 @@ mermaid.initialize({
   const svgContainer = document.getElementById('mermaid-svg-container');
   let currentZoom = 1;
   let currentSvg = null;
+  let originalViewBox = null;
   let panX = 0, panY = 0;
   let isDragging = false;
   let dragStartX = 0, dragStartY = 0;
   let dragStartPanX = 0, dragStartPanY = 0;
+  let spaceHeld = false; // Track spacebar for pan mode
 
   // Wait for mermaid to render, then add click handlers
   setTimeout(function() {
@@ -1005,19 +1062,33 @@ mermaid.initialize({
         const svg = el.querySelector('svg');
         if (svg) {
           currentSvg = svg.cloneNode(true);
+          // Store original viewBox for proper zoom
+          originalViewBox = currentSvg.getAttribute('viewBox');
+          if (!originalViewBox) {
+            // Create viewBox from dimensions if not present
+            const w = currentSvg.getAttribute('width') || currentSvg.getBoundingClientRect().width;
+            const h = currentSvg.getAttribute('height') || currentSvg.getBoundingClientRect().height;
+            originalViewBox = '0 0 ' + parseFloat(w) + ' ' + parseFloat(h);
+          }
           currentZoom = 1;
           panX = 0; panY = 0;
           svgContainer.innerHTML = '';
           svgContainer.appendChild(currentSvg);
-          applyTransform();
+          // Make SVG fill container and be responsive
+          currentSvg.style.width = '100%';
+          currentSvg.style.height = 'auto';
+          currentSvg.style.maxWidth = '95vw';
+          currentSvg.style.maxHeight = '90vh';
+          applyViewBoxZoom();
           overlay.classList.add('active');
           document.body.style.overflow = 'hidden';
+          svgContainer.classList.add('selecting');
         }
       });
     });
   }, 500);
 
-  // Click overlay background to close (but not when dragging or clicking container)
+  // Click overlay background to close (but not when dragging)
   overlay.addEventListener('click', function(e) {
     if (e.target === overlay && !isDragging) {
       closeOverlay();
@@ -1028,7 +1099,9 @@ mermaid.initialize({
     overlay.classList.remove('active');
     document.body.style.overflow = '';
     svgContainer.innerHTML = '';
+    svgContainer.classList.remove('selecting');
     currentSvg = null;
+    originalViewBox = null;
     currentZoom = 1;
     panX = 0; panY = 0;
   }
@@ -1038,68 +1111,77 @@ mermaid.initialize({
     currentZoom = newZoom;
     // Reset pan if zooming out to 1x or less
     if (currentZoom <= 1) { panX = 0; panY = 0; }
-    applyTransform();
-  }
-
-  function zoomTo(level) {
-    currentZoom = Math.min(Math.max(level, 0.25), 8);
-    if (currentZoom <= 1) { panX = 0; panY = 0; }
-    applyTransform();
+    applyViewBoxZoom();
   }
 
   function zoomReset() {
     currentZoom = 1;
     panX = 0; panY = 0;
-    applyTransform();
+    applyViewBoxZoom();
   }
 
   function toggleZoom() {
-    // Toggle between 1x and 2x (like Preview double-click)
     if (currentZoom < 1.5) {
       currentZoom = 2;
     } else {
       currentZoom = 1;
       panX = 0; panY = 0;
     }
-    applyTransform();
+    applyViewBoxZoom();
   }
 
-  function applyTransform() {
-    if (currentSvg) {
-      currentSvg.style.transform = 'translate(' + panX + 'px, ' + panY + 'px) scale(' + currentZoom + ')';
-      // Update cursor based on zoom level
-      svgContainer.style.cursor = currentZoom > 1 ? 'grab' : 'default';
+  // Use viewBox manipulation for true vector zoom (text stays crisp)
+  function applyViewBoxZoom() {
+    if (currentSvg && originalViewBox) {
+      const parts = originalViewBox.split(/\\s+/).map(parseFloat);
+      const origW = parts[2], origH = parts[3];
+      const newW = origW / currentZoom;
+      const newH = origH / currentZoom;
+      // Pan offset relative to original size
+      const offsetX = (origW - newW) / 2 - (panX / currentZoom);
+      const offsetY = (origH - newH) / 2 - (panY / currentZoom);
+      currentSvg.setAttribute('viewBox', offsetX + ' ' + offsetY + ' ' + newW + ' ' + newH);
+      // Update cursor based on mode
+      updateCursor();
     }
   }
 
-  // Pan/drag functionality
+  function updateCursor() {
+    if (spaceHeld) {
+      svgContainer.style.cursor = isDragging ? 'grabbing' : 'grab';
+      svgContainer.classList.remove('selecting');
+    } else {
+      svgContainer.style.cursor = 'default';
+      svgContainer.classList.add('selecting');
+    }
+  }
+
+  // Pan/drag - only when holding spacebar (like design apps)
   svgContainer.addEventListener('mousedown', function(e) {
-    if (currentZoom > 1) {
+    if (spaceHeld && currentZoom > 1) {
       isDragging = true;
       dragStartX = e.clientX;
       dragStartY = e.clientY;
       dragStartPanX = panX;
       dragStartPanY = panY;
-      svgContainer.style.cursor = 'grabbing';
       e.preventDefault();
+      updateCursor();
     }
+    // Otherwise allow normal text selection
   });
 
   document.addEventListener('mousemove', function(e) {
     if (isDragging && currentSvg) {
       panX = dragStartPanX + (e.clientX - dragStartX);
       panY = dragStartPanY + (e.clientY - dragStartY);
-      applyTransform();
-      svgContainer.style.cursor = 'grabbing';
+      applyViewBoxZoom();
     }
   });
 
   document.addEventListener('mouseup', function() {
     if (isDragging) {
       isDragging = false;
-      if (svgContainer && currentZoom > 1) {
-        svgContainer.style.cursor = 'grab';
-      }
+      updateCursor();
     }
   });
 
@@ -1117,20 +1199,23 @@ mermaid.initialize({
     zoomReset();
   });
 
-  // Double-click to toggle zoom (like macOS Preview)
+  // Double-click to toggle zoom
   let lastClickTime = 0;
-  svgContainer.addEventListener('click', function(e) {
-    const now = Date.now();
-    if (now - lastClickTime < 300 && !isDragging) {
-      toggleZoom();
-    }
-    lastClickTime = now;
+  svgContainer.addEventListener('dblclick', function(e) {
+    e.preventDefault();
+    toggleZoom();
   });
 
   // Keyboard shortcuts (with Cmd key for zoom, like macOS)
   document.addEventListener('keydown', function(e) {
     if (!overlay.classList.contains('active')) return;
     if (e.key === 'Escape') closeOverlay();
+    // Spacebar to enable pan mode (like Photoshop/Figma)
+    if (e.key === ' ' && !e.repeat) {
+      e.preventDefault();
+      spaceHeld = true;
+      updateCursor();
+    }
     // Cmd+Plus / Cmd+Equals to zoom in
     if ((e.metaKey || e.ctrlKey) && (e.key === '+' || e.key === '=')) {
       e.preventDefault();
@@ -1145,6 +1230,14 @@ mermaid.initialize({
     if ((e.metaKey || e.ctrlKey) && e.key === '0') {
       e.preventDefault();
       zoomReset();
+    }
+  });
+
+  document.addEventListener('keyup', function(e) {
+    if (e.key === ' ') {
+      spaceHeld = false;
+      isDragging = false;
+      updateCursor();
     }
   });
 
@@ -1481,17 +1574,105 @@ mermaid.initialize({
             return html
         }
 
-        let range = NSRange(html.startIndex..., in: html)
+        var result = html
+        let matches = regex.matches(in: html, options: [], range: NSRange(html.startIndex..., in: html))
 
-        // Replace with <div class="mermaid">$1</div>, but we need to decode HTML entities in the content
-        let result = regex.stringByReplacingMatches(
-            in: html,
-            options: [],
-            range: range,
-            withTemplate: #"<div class="mermaid">$1</div>"#
-        )
+        // Process matches in reverse order to preserve indices
+        for match in matches.reversed() {
+            guard let fullRange = Range(match.range, in: html),
+                  let contentRange = Range(match.range(at: 1), in: html) else { continue }
+
+            // Get the mermaid content and decode HTML entities
+            var content = String(html[contentRange])
+            os_log("Mermaid raw content: %{public}@", log: OSLog.rendering, type: .debug, String(content.prefix(200)))
+            content = decodeHTMLEntities(content)
+            os_log("Mermaid decoded content: %{public}@", log: OSLog.rendering, type: .debug, String(content.prefix(200)))
+
+            // Create the mermaid pre element (pre preserves whitespace unlike div)
+            let mermaidPre = "<pre class=\"mermaid\">\(content)</pre>"
+            result.replaceSubrange(fullRange, with: mermaidPre)
+        }
 
         return result
+    }
+
+    /// Decode common HTML entities to their actual characters
+    private func decodeHTMLEntities(_ text: String) -> String {
+        var result = text
+        let entities: [(String, String)] = [
+            ("&#10;", "\n"),
+            ("&#13;", "\r"),
+            ("&#xA;", "\n"),
+            ("&#xD;", "\r"),
+            ("&amp;", "&"),
+            ("&lt;", "<"),
+            ("&gt;", ">"),
+            ("&quot;", "\""),
+            ("&#39;", "'"),
+            ("&apos;", "'"),
+            ("&#x27;", "'"),
+            ("&#x2F;", "/"),
+            ("&#47;", "/"),
+            ("&nbsp;", " "),
+            ("&#160;", " "),
+        ]
+        for (entity, char) in entities {
+            result = result.replacingOccurrences(of: entity, with: char)
+        }
+        return result
+    }
+
+    /// Extract mermaid blocks from markdown, returning (modified markdown, stored blocks)
+    /// This preserves original content with newlines intact
+    private func extractMermaidBlocks(_ markdown: String) -> (String, [String: String]) {
+        // Match ```mermaid ... ``` blocks, capturing the content
+        let pattern = #"```mermaid\s*\n([\s\S]*?)```"#
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else {
+            return (markdown, [:])
+        }
+
+        var result = markdown
+        var storedBlocks: [String: String] = [:]
+        let matches = regex.matches(in: markdown, options: [], range: NSRange(markdown.startIndex..., in: markdown))
+
+        // Process in reverse to maintain indices
+        for (index, match) in matches.reversed().enumerated() {
+            guard let fullRange = Range(match.range, in: markdown),
+                  let contentRange = Range(match.range(at: 1), in: markdown) else { continue }
+
+            let content = String(markdown[contentRange])
+            // Use a text placeholder that survives cmark-gfm processing
+            // (HTML comments get stripped unless unsafe mode is on)
+            let blockId = matches.count - 1 - index
+            let placeholder = "MERMAID_PLACEHOLDER_\(blockId)_BLOCK"
+            storedBlocks[placeholder] = content
+
+            result.replaceSubrange(fullRange, with: placeholder)
+        }
+
+        return (result, storedBlocks)
+    }
+
+    /// Restore mermaid blocks from placeholders, wrapping in proper HTML
+    private func restoreMermaidBlocks(_ html: String, blocks: [String: String]) -> String {
+        var result = html
+        for (placeholder, content) in blocks {
+            // Wrap in pre.mermaid - pre preserves whitespace
+            let mermaidHtml = "<pre class=\"mermaid\">\(escapeHtmlForMermaid(content))</pre>"
+            // The placeholder gets wrapped in <p> tags by cmark-gfm
+            result = result.replacingOccurrences(of: "<p>\(placeholder)</p>", with: mermaidHtml)
+            // Also try without <p> tags (in case of different contexts)
+            result = result.replacingOccurrences(of: placeholder, with: mermaidHtml)
+        }
+        return result
+    }
+
+    /// Escape HTML special characters for mermaid content (but preserve newlines)
+    private func escapeHtmlForMermaid(_ text: String) -> String {
+        return text
+            .replacingOccurrences(of: "&", with: "&amp;")
+            .replacingOccurrences(of: "<", with: "&lt;")
+            .replacingOccurrences(of: ">", with: "&gt;")
     }
 
     internal func renderYaml(_ yaml: [(key: AnyHashable, value: Any)]) -> String {
