@@ -121,7 +121,7 @@ pre.hl	{ background-color: var(--hl_Background);}
 
 
 pre {
-  max-width: 902px;
+  max-width: 100%;
 }
 * {
   box-sizing: border-box;
@@ -146,23 +146,14 @@ body {
   background-color: var(--background);
 }
 
-/* If the window is bigger than 902 pixels, the border will be visible. */
-@media (min-width: 902px) {
-  article {
-    border-radius: 8px;
-    border-width: 1px;  
-    border-style: solid;
-    border-color: var(--body-border-color);
-  }
-}
-
+/* Content uses full width - no border needed */
 article {
-  margin: auto;
-  max-width: 902px;
+  margin: 0;
+  max-width: 100%;
   font-size: inherit;
   line-height: 1.5;
   word-wrap: break-word;
-  padding: 32px;
+  padding: 24px 32px;
 }
 
 a {
