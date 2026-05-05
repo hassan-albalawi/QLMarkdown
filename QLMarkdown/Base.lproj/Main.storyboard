@@ -26,43 +26,6 @@
                                                 <segue destination="VZF-nt-1dI" kind="show" id="YtI-lA-Vf2"/>
                                             </connections>
                                         </menuItem>
-                                        <menuItem title="Check for Updates" id="VIP-KO-Jb3">
-                                            <modifierMask key="keyEquivalentModifierMask"/>
-                                            <menu key="submenu" title="Check for Updates" id="9t9-UX-FUG">
-                                                <items>
-                                                    <menuItem title="Never" identifier="update_refresh_0" id="Ugh-Dg-7oF">
-                                                        <modifierMask key="keyEquivalentModifierMask"/>
-                                                        <connections>
-                                                            <action selector="onUpdateRate:" target="Voe-Tx-rLC" id="dZN-wE-rSY"/>
-                                                        </connections>
-                                                    </menuItem>
-                                                    <menuItem title="Hourly" tag="3600" identifier="update_refresh_h" id="9hf-5c-VsA">
-                                                        <modifierMask key="keyEquivalentModifierMask"/>
-                                                        <connections>
-                                                            <action selector="onUpdateRate:" target="Voe-Tx-rLC" id="4i4-aC-Kb3"/>
-                                                        </connections>
-                                                    </menuItem>
-                                                    <menuItem title="Daily" state="on" tag="86400" identifier="update_refresh_d" id="PKe-RM-oGA">
-                                                        <modifierMask key="keyEquivalentModifierMask"/>
-                                                        <connections>
-                                                            <action selector="onUpdateRate:" target="Voe-Tx-rLC" id="PK4-0L-RZn"/>
-                                                        </connections>
-                                                    </menuItem>
-                                                    <menuItem title="Weekly" tag="604800" identifier="update_refresh_w" id="is3-eT-F7U">
-                                                        <modifierMask key="keyEquivalentModifierMask"/>
-                                                        <connections>
-                                                            <action selector="onUpdateRate:" target="Voe-Tx-rLC" id="JAM-SV-fNe"/>
-                                                        </connections>
-                                                    </menuItem>
-                                                    <menuItem isSeparatorItem="YES" id="mSY-dZ-Olb"/>
-                                                    <menuItem title="Check now…" keyEquivalent="u" id="YYv-je-P9H">
-                                                        <connections>
-                                                            <action selector="checkForUpdates:" target="Voe-Tx-rLC" id="JWB-gK-Wfw"/>
-                                                        </connections>
-                                                    </menuItem>
-                                                </items>
-                                            </menu>
-                                        </menuItem>
                                         <menuItem title="Install the command line tool…" id="eLR-wj-sll">
                                             <modifierMask key="keyEquivalentModifierMask"/>
                                             <connections>
@@ -2091,7 +2054,6 @@ DQ
                     </connections>
                 </viewController>
                 <customObject id="rPt-NT-nkU" userLabel="First Responder" customClass="NSResponder" sceneMemberID="firstResponder"/>
-                <customObject id="uEM-91-19k" customClass="SPUStandardUpdaterController"/>
                 <userDefaultsController representsSharedInstance="YES" id="JgT-L6-uQU"/>
             </objects>
             <point key="canvasLocation" x="-0.5" y="936.5"/>

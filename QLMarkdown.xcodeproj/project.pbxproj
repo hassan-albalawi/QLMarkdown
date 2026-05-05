@@ -17,7 +17,6 @@
 		830B5B3E272D68F700378FFE /* SwiftSoup in Frameworks */ = {isa = PBXBuildFile; productRef = 830B5B3D272D68F700378FFE /* SwiftSoup */; };
 		830B5B40272D68FB00378FFE /* SwiftSoup in Frameworks */ = {isa = PBXBuildFile; productRef = 830B5B3F272D68FB00378FFE /* SwiftSoup */; };
 		8310245129E9F8D5004651DC /* HighlightViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8310245029E9F8D5004651DC /* HighlightViewController.swift */; };
-		831834E6277E10150044ECDA /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 831834E5277E10150044ECDA /* Sparkle */; };
 		831A8C41258ABADA00E36182 /* Quartz.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 831A8C40258ABADA00E36182 /* Quartz.framework */; };
 		831A8C44258ABADA00E36182 /* PreviewViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 831A8C43258ABADA00E36182 /* PreviewViewController.swift */; };
 		831A8C47258ABADA00E36182 /* PreviewViewController.xib in Resources */ = {isa = PBXBuildFile; fileRef = 831A8C45258ABADA00E36182 /* PreviewViewController.xib */; };
@@ -875,7 +874,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				831834E6277E10150044ECDA /* Sparkle in Frameworks */,
 				83F8822D2598A5C0008C5071 /* WebKit.framework in Frameworks */,
 				83D82A89277C45B500C9B99F /* libpcre2-32.a in Frameworks */,
 				8382D05C2664051400210A0A /* Yams in Frameworks */,
@@ -1481,7 +1479,6 @@
 			packageProductDependencies = (
 				8382D05B2664051400210A0A /* Yams */,
 				830B5B3B272D68E500378FFE /* SwiftSoup */,
-				831834E5277E10150044ECDA /* Sparkle */,
 			);
 			productName = QLMarkdown;
 			productReference = 83598E6125818808004664D3 /* QLMarkdown.app */;
@@ -1577,7 +1574,6 @@
 			packageReferences = (
 				8382D054266403B000210A0A /* XCRemoteSwiftPackageReference "Yams" */,
 				830B5B3A272D68E500378FFE /* XCRemoteSwiftPackageReference "SwiftSoup" */,
-				831834E4277E10150044ECDA /* XCRemoteSwiftPackageReference "Sparkle" */,
 			);
 			productRefGroup = 83598E6225818808004664D3 /* Products */;
 			projectDirPath = "";
@@ -3034,14 +3030,6 @@
 				minimumVersion = 2.0.0;
 			};
 		};
-		831834E4277E10150044ECDA /* XCRemoteSwiftPackageReference "Sparkle" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/sparkle-project/Sparkle";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 2.0.0;
-			};
-		};
 		8382D054266403B000210A0A /* XCRemoteSwiftPackageReference "Yams" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/jpsim/Yams.git";
@@ -3097,11 +3085,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 8382D054266403B000210A0A /* XCRemoteSwiftPackageReference "Yams" */;
 			productName = Yams;
-		};
-		831834E5277E10150044ECDA /* Sparkle */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 831834E4277E10150044ECDA /* XCRemoteSwiftPackageReference "Sparkle" */;
-			productName = Sparkle;
 		};
 		8320D59A2D1C260E005868BD /* Yams */ = {
 			isa = XCSwiftPackageProductDependency;

@@ -6,7 +6,6 @@
 //
 
 import Cocoa
-import Sparkle
 
 // MARK: - Recent Files Manager
 class RecentFilesManager {
@@ -58,8 +57,6 @@ class RecentFilesManager {
 
 @main
 class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
-    var userDriver: SPUStandardUserDriver?
-    var updater: SPUUpdater?
     @IBOutlet weak var recentFilesMenu: NSMenu?
 
     func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool {
@@ -104,24 +101,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
     
     func applicationDidFinishLaunching(_ aNotification: Notification) {
-        // Insert code here to initialize your application
-        let hostBundle = Bundle.main
-        let applicationBundle = hostBundle;
-        
-        self.userDriver = SPUStandardUserDriver(hostBundle: hostBundle, delegate: nil)
-        self.updater = SPUUpdater(hostBundle: hostBundle, applicationBundle: applicationBundle, userDriver: self.userDriver!, delegate: nil)
-        
-        do {
-            try self.updater!.start()
-        } catch {
-            print("Failed to start updater with error: \(error)")
-            
-            let alert = NSAlert()
-            alert.messageText = "Updater Error"
-            alert.informativeText = "The Updater failed to start. For detailed error information, check the Console.app log."
-            alert.addButton(withTitle: "Close").keyEquivalent = "\u{1b}"
-            alert.runModal()
-        }
+        // Updates are disabled in this fork. New upstream releases are picked manually.
     }
     
     func applicationWillTerminate(_ aNotification: Notification) {
@@ -132,19 +112,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         return true
     }
 
-    @IBAction func checkForUpdates(_ sender: Any)
-    {
-        self.updater?.checkForUpdates()
-    }
-    
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool
     {
-        if menuItem.action == #selector(self.checkForUpdates(_:)) {
-            return self.updater?.canCheckForUpdates ?? false
-        }
-        if menuItem.identifier?.rawValue.starts(with: "update_refresh") ?? false {
-            menuItem.state = ((NSApplication.shared.delegate as? AppDelegate)?.updater?.updateCheckInterval == TimeInterval(menuItem.tag)) ? .on : .off
-        } else if menuItem.identifier?.rawValue == "auto refresh" {
+        if menuItem.identifier?.rawValue == "auto refresh" {
             if let a = UserDefaults.standard.value(forKey: "auto-refresh") as? Bool {
                 menuItem.state = a ? .on : .off
             }
@@ -206,10 +176,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         }
     }
     
-    @IBAction func onUpdateRate(_ sender: NSMenuItem) {
-        updater?.updateCheckInterval = TimeInterval(sender.tag)
-    }
-    
     @IBAction func buyMeACoffee(_ sender: Any?) {
         let url = URL(string: "https://www.buymeacoffee.com/sbarex")!
         NSWorkspace.shared.open(url)
@@ -266,4 +232,3 @@ extension AppDelegate: NSMenuDelegate {
         }
     }
 }
-

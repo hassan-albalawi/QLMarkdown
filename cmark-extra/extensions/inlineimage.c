@@ -29,6 +29,38 @@
 #include <libgen.h>
 #include <ctype.h>
 
+static int hex_value(char c) {
+    if (c >= '0' && c <= '9') return c - '0';
+    if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+    if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+    return -1;
+}
+
+static char *url_decode(const char *s) {
+    if (!s) return NULL;
+
+    size_t len = strlen(s);
+    char *decoded = (char *)malloc(len + 1);
+    if (!decoded) return NULL;
+
+    char *out = decoded;
+    for (size_t i = 0; i < len; i++) {
+        if (s[i] == '%' && i + 2 < len) {
+            int high = hex_value(s[i + 1]);
+            int low = hex_value(s[i + 2]);
+            if (high >= 0 && low >= 0) {
+                *out++ = (char)((high << 4) | low);
+                i += 2;
+                continue;
+            }
+        }
+        *out++ = s[i];
+    }
+    *out = '\0';
+
+    return decoded;
+}
+
 static inline void lowercase(char *s){
     while (*s) {
         *s = tolower(*s);
@@ -181,14 +213,16 @@ char *get_base64_image(const char *url, MimeCheck *mime_callback, void *mime_con
     char *mime = NULL;
     char *encoded = NULL;
     
-    parse_url(url, &protocol, &host, &path, &query);
+    char *decoded = url_decode(url);
+    const char *source_url = decoded != NULL ? decoded : url;
+    parse_url(source_url, &protocol, &host, &path, &query);
     
     if (strcmp(protocol, "file") == 0) {
         // The url path is the local file path.
         image_path = path;
     } else if (strlen(host) == 0) {
         // No host, the url is a local file path.
-        image_path = (const char *)url;
+        image_path = source_url;
     } else {
         if (remote_callback != NULL) {
             char *buffer = remote_callback(url, remote_context);
@@ -273,6 +307,7 @@ continue_loop:
     free(path);
     free(host);
     free(query);
+    free(decoded);
     
     return encoded;
 }

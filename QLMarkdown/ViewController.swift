@@ -816,10 +816,6 @@ class ViewController: NSViewController {
         }
     }
     
-    @IBAction func checkForUpdates(_ sender: Any) {
-        (NSApplication.shared.delegate as? AppDelegate)?.checkForUpdates(sender)
-    }
-    
     @IBAction func handleQLSizeChanged(_ sender: NSPopUpButton) {
         self.qlWindowSizeCustomized = sender.indexOfSelectedItem == 1
     }

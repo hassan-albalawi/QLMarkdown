@@ -137,7 +137,11 @@ class Settings: Codable {
     @objc var smartQuotesOption: Bool = true
     @objc var validateUTFOption: Bool = false
     
-    @objc var customCSS: URL?
+    @objc var customCSS: URL? {
+        didSet {
+            customCSSFetched = false
+        }
+    }
     @objc var customCSSFetched: Bool = false
     @objc var customCSSCode: String?
     @objc var customCSSOverride: Bool = false
