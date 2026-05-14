@@ -768,15 +768,36 @@
                                     </connections>
                                 </toolbarItem>
                                 <toolbarItem implicitItemIdentifier="QML-Open-Folder" label="Show in Finder" paletteLabel="Show in Finder" tag="-1" sizingBehavior="auto" id="QML-OF-Itm">
-                                    <imageReference key="image" image="folder" catalog="system" symbolScale="large"/>
+                                    <imageReference key="image" image="finder" catalog="system" symbolScale="large"/>
                                     <connections>
                                         <action selector="openContainingFolder:" target="Ady-hI-5gd" id="QML-OF-Act"/>
+                                    </connections>
+                                </toolbarItem>
+                                <toolbarItem implicitItemIdentifier="QML-Copy-Folder-Path" label="Copy Folder Path" paletteLabel="Copy Folder Path" tag="-1" sizingBehavior="auto" id="QML-CFP-Itm">
+                                    <imageReference key="image" image="folder" catalog="system" symbolScale="large"/>
+                                    <connections>
+                                        <action selector="copyContainingFolderPath:" target="Ady-hI-5gd" id="QML-CFP-Act"/>
+                                    </connections>
+                                </toolbarItem>
+                                <toolbarItem implicitItemIdentifier="QML-Copy-File-Path" label="Copy File Path" paletteLabel="Copy File Path" tag="-1" sizingBehavior="auto" id="QML-CFP2-Itm">
+                                    <imageReference key="image" image="doc.on.doc" catalog="system" symbolScale="large"/>
+                                    <connections>
+                                        <action selector="copyFilePath:" target="Ady-hI-5gd" id="QML-CFP2-Act"/>
+                                    </connections>
+                                </toolbarItem>
+                                <toolbarItem implicitItemIdentifier="QML-Save-File" label="Save File" paletteLabel="Save File" tag="-1" sizingBehavior="auto" id="QML-SF-Itm">
+                                    <imageReference key="image" image="square.and.arrow.down" catalog="system" symbolScale="large"/>
+                                    <connections>
+                                        <action selector="saveCurrentMarkdown:" target="Ady-hI-5gd" id="QML-SF-Act"/>
                                     </connections>
                                 </toolbarItem>
                             </allowedToolbarItems>
                             <defaultToolbarItems>
                                 <toolbarItem reference="6pH-Qf-g7v"/>
+                                <toolbarItem reference="QML-CFP-Itm"/>
+                                <toolbarItem reference="QML-CFP2-Itm"/>
                                 <toolbarItem reference="QML-OF-Itm"/>
+                                <toolbarItem reference="QML-SF-Itm"/>
                                 <toolbarItem reference="the-Rm-DRx"/>
                             </defaultToolbarItems>
                         </toolbar>

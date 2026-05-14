@@ -1,5 +1,16 @@
 .DS_Store
 
+## Local build output
+build/
+DerivedData/
+*.xcresult
+*.dSYM
+
+## Generated/local artifacts
+tmp/
+*.bak
+QLMarkdown/config.h
+
 ## User settings
 xcuserdata/
 jpcre2.xcodeproj/xcuserdata/
@@ -23,5 +34,3 @@ highlight-wrapper/file-5.46/src/Makefile
 highlight-wrapper/file-5.46/tests/Makefile
 
 /*/.idea/
-
-*.dSYM

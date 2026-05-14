@@ -701,6 +701,24 @@ class ViewController: NSViewController {
         }
         return true
     }
+
+    var canSaveCurrentMarkdown: Bool {
+        guard let file = markdown_file else { return false }
+        return !file.standardizedFileURL.path.hasPrefix(Bundle.main.bundleURL.standardizedFileURL.path)
+    }
+
+    @IBAction func saveCurrentMarkdown(_ sender: Any) {
+        guard let file = markdown_file, canSaveCurrentMarkdown else {
+            NSSound.beep()
+            return
+        }
+
+        if exportCurrentMarkdown(to: file) {
+            edited = false
+            doRefresh(sender)
+            view.window?.toolbar?.validateVisibleItems()
+        }
+    }
     
     @IBAction func reloadMarkdown(_ sender: Any) {
         guard let file = self.markdown_file else {
@@ -793,7 +811,11 @@ class ViewController: NSViewController {
     }
     
     @IBAction func saveDocument(_ sender: Any) {
-        saveAction(sender)
+        if !editorHidden && canSaveCurrentMarkdown {
+            saveCurrentMarkdown(sender)
+        } else {
+            saveAction(sender)
+        }
     }
     
     @IBAction func revertDocumentToSaved(_ sender: Any) {
@@ -877,6 +899,7 @@ class ViewController: NSViewController {
 
     @IBAction func toggleEditor(_ sender: Any) {
         editorHidden = !editorHidden
+        view.window?.toolbar?.validateVisibleItems()
     }
 
     func updateEditorVisibility(animated: Bool) {
@@ -918,6 +941,30 @@ class ViewController: NSViewController {
     @IBAction func openContainingFolder(_ sender: Any) {
         guard let file = markdown_file else { return }
         NSWorkspace.shared.activateFileViewerSelecting([file])
+    }
+
+    @IBAction func copyContainingFolderPath(_ sender: Any) {
+        guard let path = markdown_file?.deletingLastPathComponent().path else {
+            NSSound.beep()
+            return
+        }
+
+        copyPathToPasteboard(path)
+    }
+
+    @IBAction func copyFilePath(_ sender: Any) {
+        guard let path = markdown_file?.path else {
+            NSSound.beep()
+            return
+        }
+
+        copyPathToPasteboard(path)
+    }
+
+    private func copyPathToPasteboard(_ path: String) {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(path, forType: .string)
     }
 
     @IBAction func doRefresh(_ sender: Any)  {
@@ -1134,6 +1181,7 @@ document.addEventListener('scroll', function(e) {
         self.webView.configuration.preferences.setValue(true, forKey: "developerExtrasEnabled")
         let contentController = self.webView.configuration.userContentController
         contentController.add(self, name: "scrollHandler")
+        contentController.add(self, name: "clipboardHandler")
         
         let settings = Settings.shared
         
@@ -1359,10 +1407,29 @@ extension ViewController: NSMenuItemValidation {
             menuItem.title = settingsHidden ? "Show Settings" : "Hide Settings"
         } else if menuItem.action == #selector(self.toggleEditor(_:)) {
             menuItem.title = editorHidden ? "Show Editor" : "Hide Editor"
-        } else if menuItem.action == #selector(self.saveDocument(_:)) || menuItem.action == #selector(self.saveAction(_:)) {
+        } else if menuItem.action == #selector(self.saveDocument(_:)) {
+            if !editorHidden && canSaveCurrentMarkdown {
+                menuItem.title = "Save File"
+                return edited
+            }
+            menuItem.title = "Save settings"
+            return self.isDirty
+        } else if menuItem.action == #selector(self.saveAction(_:)) {
             return self.isDirty
         } else if menuItem.action == #selector(self.revertDocumentToSaved(_:)) {
             return self.isDirty
+        }
+        return true
+    }
+}
+
+extension ViewController: NSUserInterfaceValidations {
+    func validateUserInterfaceItem(_ item: NSValidatedUserInterfaceItem) -> Bool {
+        if item.action == #selector(self.saveCurrentMarkdown(_:)) {
+            return !editorHidden && canSaveCurrentMarkdown && edited
+        }
+        if item.action == #selector(self.copyContainingFolderPath(_:)) || item.action == #selector(self.copyFilePath(_:)) {
+            return markdown_file != nil
         }
         return true
     }
@@ -1403,9 +1470,83 @@ extension ViewController: WKNavigationDelegate {
 
 // MARK: - WKScriptMessageHandler
 extension ViewController: WKScriptMessageHandler {
+    private func setPNGClipboardData(_ data: Data) {
+        let pasteboard = NSPasteboard.general
+        let applePNG = NSPasteboard.PasteboardType("Apple PNG pasteboard type")
+        pasteboard.declareTypes([.png, applePNG], owner: nil)
+        pasteboard.setData(data, forType: .png)
+        pasteboard.setData(data, forType: applePNG)
+    }
+
+    private func pngData(from image: NSImage, pixelSize: CGSize) -> Data? {
+        let width = max(1, Int(pixelSize.width.rounded()))
+        let height = max(1, Int(pixelSize.height.rounded()))
+        guard let bitmap = NSBitmapImageRep(
+            bitmapDataPlanes: nil,
+            pixelsWide: width,
+            pixelsHigh: height,
+            bitsPerSample: 8,
+            samplesPerPixel: 4,
+            hasAlpha: true,
+            isPlanar: false,
+            colorSpaceName: .deviceRGB,
+            bytesPerRow: 0,
+            bitsPerPixel: 0
+        ) else { return nil }
+
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: bitmap)
+        image.draw(in: CGRect(x: 0, y: 0, width: CGFloat(width), height: CGFloat(height)))
+        NSGraphicsContext.restoreGraphicsState()
+
+        return bitmap.representation(using: .png, properties: [:])
+    }
+
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         if message.name == "scrollHandler", let dict = message.body as? [String : AnyObject], let p = dict["scroll"] as? Int {
             self.prev_scroll = p
+        }
+        if message.name == "clipboardHandler", let dict = message.body as? [String : AnyObject], let kind = dict["kind"] as? String {
+            let pasteboard = NSPasteboard.general
+
+            if kind == "svg" {
+                guard let value = dict["value"] as? String else { return }
+                pasteboard.clearContents()
+                pasteboard.setString(value, forType: .string)
+                pasteboard.setString(value, forType: NSPasteboard.PasteboardType("public.svg-image"))
+            } else if kind == "pngSvg" {
+                guard let value = dict["value"] as? String else { return }
+                guard
+                    let svgData = value.data(using: .utf8),
+                    let image = NSImage(data: svgData),
+                    let tiff = image.tiffRepresentation,
+                    let bitmap = NSBitmapImageRep(data: tiff),
+                    let pngData = bitmap.representation(using: .png, properties: [:])
+                else { return }
+                setPNGClipboardData(pngData)
+            } else if kind == "png" {
+                guard let value = dict["value"] as? String else { return }
+                let payload = value.components(separatedBy: ",").last ?? value
+                guard let data = Data(base64Encoded: payload) else { return }
+                setPNGClipboardData(data)
+            } else if kind == "pngSnapshot", let rectInfo = dict["value"] as? [String : AnyObject] {
+                guard
+                    let x = rectInfo["x"] as? Double,
+                    let y = rectInfo["y"] as? Double,
+                    let width = rectInfo["width"] as? Double,
+                    let height = rectInfo["height"] as? Double
+                else { return }
+
+                let config = WKSnapshotConfiguration()
+                config.rect = CGRect(x: x, y: y, width: width, height: height)
+                self.webView.takeSnapshot(with: config) { image, _ in
+                    guard
+                        let image = image,
+                        let pngData = self.pngData(from: image, pixelSize: CGSize(width: width * 1.25, height: height * 1.25))
+                    else { return }
+                    self.setPNGClipboardData(pngData)
+                }
+            }
         }
     }
 }
@@ -1554,5 +1695,6 @@ extension ViewController: NSTextDelegate {
             return
         }
         edited = true
+        view.window?.toolbar?.validateVisibleItems()
     }
 }

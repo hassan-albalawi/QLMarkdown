@@ -922,342 +922,523 @@ MathJax = {
                 s_footer += "<script type=\"text/javascript\">\n\(mermaidJS)\n</script>\n"
                 s_footer += """
 <style type="text/css">
-/* Reset pre styling for mermaid elements - they render as SVG */
 pre.mermaid {
   background: transparent;
-  border: none;
+  border: 0;
   padding: 0;
   margin: 0;
   font-family: inherit;
   white-space: pre;
   overflow: visible;
 }
-.mermaid { cursor: zoom-in; transition: opacity 0.2s; }
-.mermaid:hover { opacity: 0.85; }
-.mermaid-overlay {
+.mermaid-diagram-shell {
+  position: relative;
+  margin: 18px 0 24px;
+  min-height: 80px;
+}
+.mermaid-diagram-shell .mermaid {
+  text-align: center;
+  margin: 0;
+}
+.mermaid-diagram-shell svg {
+  max-width: 100%;
+  height: auto;
+}
+.mermaid-actionbar {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-2px);
+  transition: opacity 120ms ease, transform 120ms ease;
+  z-index: 2;
+}
+.mermaid-diagram-shell:hover .mermaid-actionbar,
+.mermaid-actionbar:focus-within {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+.mermaid-tool-btn {
+  appearance: none;
+  border: 1px solid rgba(31, 35, 40, 0.12);
+  border-radius: 6px;
+  background: rgba(246, 248, 250, 0.94);
+  color: #24292f;
+  min-width: 34px;
+  height: 34px;
+  padding: 0 10px;
+  font: 600 13px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(31, 35, 40, 0.08);
+}
+.mermaid-tool-btn:hover {
+  background: #fff;
+  border-color: rgba(31, 35, 40, 0.22);
+}
+.mermaid-tool-btn:active {
+  transform: translateY(1px);
+}
+.mermaid-lightbox {
   display: none;
   position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0,0,0,0.92);
+  inset: 0;
   z-index: 9999;
-  overflow: auto;
-  justify-content: center;
-  align-items: center;
+  background: rgba(17, 24, 39, 0.82);
+  backdrop-filter: blur(3px);
 }
-.mermaid-overlay.active { display: flex; }
-.mermaid-svg-container {
+.mermaid-lightbox.active {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+}
+.mermaid-lightbox-topbar {
+  height: 56px;
+  display: flex;
   align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 18px;
+}
+.mermaid-lightbox-close {
+  margin-left: 8px;
+}
+.mermaid-lightbox-viewport {
+  position: relative;
+  flex: 1;
+  margin: 0 18px 72px;
+  border-radius: 10px;
+  background: #fff;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.28);
+}
+.mermaid-lightbox-stage {
   width: 100%;
   height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   overflow: hidden;
+  cursor: grab;
 }
-.mermaid-svg-container svg {
-  max-width: 95vw;
-  max-height: 90vh;
+.mermaid-lightbox-stage.is-panning {
+  cursor: grabbing;
+}
+.mermaid-lightbox-stage svg {
+  max-width: 94%;
+  max-height: 92%;
+  width: auto;
+  height: auto;
   transform-origin: center center;
-}
-/* Enable text selection in zoomed SVG */
-.mermaid-svg-container svg text,
-.mermaid-svg-container svg tspan,
-.mermaid-svg-container svg foreignObject {
-  cursor: text !important;
-  user-select: text !important;
-  -webkit-user-select: text !important;
-  pointer-events: auto !important;
-}
-.mermaid-svg-container.selecting {
-  cursor: text !important;
-}
-.mermaid-svg-container.selecting svg {
-  cursor: text !important;
+  user-select: none;
+  -webkit-user-select: none;
+  pointer-events: none;
 }
 .mermaid-zoom-controls {
   position: fixed;
-  bottom: 20px;
   left: 50%;
+  bottom: 20px;
   transform: translateX(-50%);
   display: flex;
-  gap: 12px;
-  z-index: 10000;
-  background: rgba(255,255,255,0.1);
-  padding: 8px 16px;
-  border-radius: 24px;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
   backdrop-filter: blur(10px);
 }
 .mermaid-zoom-btn {
-  width: 36px; height: 36px;
+  width: 38px;
+  min-width: 38px;
+  height: 38px;
+  padding: 0;
   border-radius: 50%;
-  background: rgba(255,255,255,0.9);
-  border: none;
   font-size: 18px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: transform 0.1s, background 0.1s;
 }
-.mermaid-zoom-btn:hover { background: #fff; transform: scale(1.1); }
-.mermaid-zoom-btn:active { transform: scale(0.95); }
-.mermaid-close-hint {
+.mermaid-copy-status {
   position: fixed;
-  top: 20px;
   left: 50%;
+  bottom: 74px;
   transform: translateX(-50%);
-  color: rgba(255,255,255,0.6);
-  font-size: 13px;
-  font-family: -apple-system, sans-serif;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(17, 24, 39, 0.86);
+  color: #fff;
+  font: 500 12px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  opacity: 0;
+  transition: opacity 120ms ease;
+  pointer-events: none;
+}
+.mermaid-copy-status.visible {
+  opacity: 1;
+}
+@media (prefers-color-scheme: dark) {
+  .mermaid-tool-btn {
+    background: rgba(33, 38, 45, 0.94);
+    border-color: rgba(240, 246, 252, 0.14);
+    color: #f0f6fc;
+  }
+  .mermaid-tool-btn:hover {
+    background: #30363d;
+    border-color: rgba(240, 246, 252, 0.24);
+  }
+  .mermaid-lightbox-viewport {
+    background: #0d1117;
+  }
 }
 </style>
 <script type="text/javascript">
-console.log('Mermaid version:', mermaid.version);
-console.log('Mermaid diagrams:', Object.keys(mermaid.diagrams || {}));
-
 mermaid.initialize({
   startOnLoad: true,
   theme: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'default',
-  securityLevel: 'loose',
-  logLevel: 'debug'
+  securityLevel: 'loose'
 });
 
-// Debug: log mermaid div contents with full detail
-document.querySelectorAll('.mermaid').forEach((el, i) => {
-  console.log('Mermaid block ' + i + ' innerHTML:', el.innerHTML.substring(0, 300));
-  console.log('Mermaid block ' + i + ' textContent:', el.textContent.substring(0, 300));
-  // Check for newlines
-  console.log('Has newlines:', el.textContent.includes('\\n'), 'Has actual newlines:', /[\\r\\n]/.test(el.textContent));
-});
-
-// Mermaid fullscreen and zoom functionality
 (function() {
-  // Create overlay
-  const overlay = document.createElement('div');
-  overlay.className = 'mermaid-overlay';
-  overlay.innerHTML = `
-    <div class="mermaid-close-hint">Select text to copy • Double-click to zoom • Hold Space+drag to pan • Esc to close</div>
-    <div class="mermaid-svg-container" id="mermaid-svg-container"></div>
-    <div class="mermaid-zoom-controls">
-      <button class="mermaid-zoom-btn" id="mermaid-zoom-out" title="Zoom out (⌘-)">−</button>
-      <button class="mermaid-zoom-btn" id="mermaid-zoom-reset" title="Reset zoom (⌘0)">⟲</button>
-      <button class="mermaid-zoom-btn" id="mermaid-zoom-in" title="Zoom in (⌘+)">+</button>
+  let activeSource = null;
+  let activeSvg = null;
+  let zoom = 1;
+  let panX = 0;
+  let panY = 0;
+  let dragging = false;
+  let startX = 0;
+  let startY = 0;
+  let startPanX = 0;
+  let startPanY = 0;
+
+  const lightbox = document.createElement('div');
+  lightbox.className = 'mermaid-lightbox';
+  lightbox.innerHTML = `
+    <div class="mermaid-lightbox-topbar">
+      <button class="mermaid-tool-btn" data-mermaid-lightbox-action="copy">Copy</button>
+      <button class="mermaid-tool-btn" data-mermaid-lightbox-action="png">PNG</button>
+      <button class="mermaid-tool-btn" data-mermaid-lightbox-action="svg">SVG</button>
+      <button class="mermaid-tool-btn mermaid-lightbox-close" data-mermaid-lightbox-action="close" title="Close">×</button>
     </div>
+    <div class="mermaid-lightbox-viewport">
+      <div class="mermaid-lightbox-stage"></div>
+    </div>
+    <div class="mermaid-zoom-controls">
+      <button class="mermaid-tool-btn mermaid-zoom-btn" data-mermaid-lightbox-action="zoom-out" title="Zoom out">−</button>
+      <button class="mermaid-tool-btn mermaid-zoom-btn" data-mermaid-lightbox-action="zoom-reset" title="Reset zoom">⟲</button>
+      <button class="mermaid-tool-btn mermaid-zoom-btn" data-mermaid-lightbox-action="zoom-in" title="Zoom in">+</button>
+    </div>
+    <div class="mermaid-copy-status" aria-live="polite"></div>
   `;
-  document.body.appendChild(overlay);
+  document.body.appendChild(lightbox);
 
-  const svgContainer = document.getElementById('mermaid-svg-container');
-  let currentZoom = 1;
-  let currentSvg = null;
-  let originalViewBox = null;
-  let panX = 0, panY = 0;
-  let isDragging = false;
-  let dragStartX = 0, dragStartY = 0;
-  let dragStartPanX = 0, dragStartPanY = 0;
-  let spaceHeld = false; // Track spacebar for pan mode
+  const stage = lightbox.querySelector('.mermaid-lightbox-stage');
+  const status = lightbox.querySelector('.mermaid-copy-status');
 
-  // Wait for mermaid to render, then add click handlers
-  setTimeout(function() {
-    document.querySelectorAll('.mermaid').forEach(function(el) {
-      el.addEventListener('click', function() {
-        const svg = el.querySelector('svg');
-        if (svg) {
-          currentSvg = svg.cloneNode(true);
-          // Store original viewBox for proper zoom
-          originalViewBox = currentSvg.getAttribute('viewBox');
-          if (!originalViewBox) {
-            // Create viewBox from dimensions if not present
-            const w = currentSvg.getAttribute('width') || currentSvg.getBoundingClientRect().width;
-            const h = currentSvg.getAttribute('height') || currentSvg.getBoundingClientRect().height;
-            originalViewBox = '0 0 ' + parseFloat(w) + ' ' + parseFloat(h);
-          }
-          currentZoom = 1;
-          panX = 0; panY = 0;
-          svgContainer.innerHTML = '';
-          svgContainer.appendChild(currentSvg);
-          // Make SVG fill container and be responsive
-          currentSvg.style.width = '100%';
-          currentSvg.style.height = 'auto';
-          currentSvg.style.maxWidth = '95vw';
-          currentSvg.style.maxHeight = '90vh';
-          applyViewBoxZoom();
-          overlay.classList.add('active');
-          document.body.style.overflow = 'hidden';
-          svgContainer.classList.add('selecting');
-        }
-      });
-    });
-  }, 500);
+  function diagramName() {
+    return (document.title || 'mermaid-diagram').replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'mermaid-diagram';
+  }
 
-  // Click overlay background to close (but not when dragging)
-  overlay.addEventListener('click', function(e) {
-    if (e.target === overlay && !isDragging) {
-      closeOverlay();
+  function getSvg(diagramEl) {
+    return diagramEl && diagramEl.querySelector('svg');
+  }
+
+  function serializeSvg(svg) {
+    const clone = svg.cloneNode(true);
+    clone.removeAttribute('style');
+    clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    if (!clone.getAttribute('viewBox')) {
+      const box = svg.getBoundingClientRect();
+      clone.setAttribute('viewBox', '0 0 ' + box.width + ' ' + box.height);
     }
-  });
+    return new XMLSerializer().serializeToString(clone);
+  }
 
-  function closeOverlay() {
-    overlay.classList.remove('active');
+  function postNativeClipboard(kind, value) {
+    if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.clipboardHandler) {
+      window.webkit.messageHandlers.clipboardHandler.postMessage({ kind: kind, value: value });
+      return true;
+    }
+    return false;
+  }
+
+  function copyText(text) {
+    if (postNativeClipboard('svg', text)) {
+      return Promise.resolve();
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(text);
+    }
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    textArea.style.position = 'fixed';
+    textArea.style.opacity = '0';
+    document.body.appendChild(textArea);
+    textArea.select();
+    document.execCommand('copy');
+    textArea.remove();
+    return Promise.resolve();
+  }
+
+  function showStatus(message) {
+    status.textContent = message;
+    status.classList.add('visible');
+    window.setTimeout(function() {
+      status.classList.remove('visible');
+    }, 1200);
+  }
+
+  function copyBlob(blob, fallbackText, successMessage) {
+    if (fallbackText && postNativeClipboard('svg', fallbackText)) {
+      showStatus(successMessage);
+      return Promise.resolve();
+    }
+    if (navigator.clipboard && window.ClipboardItem) {
+      return navigator.clipboard.write([
+        new ClipboardItem({ [blob.type]: blob })
+      ]).then(function() {
+        showStatus(successMessage);
+      }).catch(function() {
+        if (fallbackText) {
+          return copyText(fallbackText).then(function() {
+            showStatus('SVG text copied');
+          });
+        }
+        showStatus('Clipboard image copy failed');
+      });
+    }
+    if (fallbackText) {
+      return copyText(fallbackText).then(function() {
+        showStatus('SVG text copied');
+      });
+    }
+    showStatus('Clipboard image copy unavailable');
+    return Promise.resolve();
+  }
+
+  function copySvg(svg) {
+    const svgText = serializeSvg(svg);
+    const blob = new Blob([svgText], { type: 'image/svg+xml' });
+    return copyBlob(blob, svgText, 'SVG copied');
+  }
+
+  function copyPng(svg) {
+    const rect = svg.getBoundingClientRect();
+    if (postNativeClipboard('pngSnapshot', {
+      x: Math.max(0, rect.left),
+      y: Math.max(0, rect.top),
+      width: Math.max(1, rect.width),
+      height: Math.max(1, rect.height)
+    })) {
+      showStatus('PNG copied');
+      return;
+    }
+    const svgText = serializeSvg(svg);
+    const svgBlob = new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(svgBlob);
+    const image = new Image();
+    image.onload = function() {
+      const box = svg.getBoundingClientRect();
+      const scale = 1.5;
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.ceil(box.width * scale));
+      canvas.height = Math.max(1, Math.ceil(box.height * scale));
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = window.matchMedia('(prefers-color-scheme: dark)').matches ? '#0d1117' : '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(url);
+      canvas.toBlob(function(blob) {
+        if (!blob) return;
+        const reader = new FileReader();
+        reader.onloadend = function() {
+          if (postNativeClipboard('png', reader.result)) {
+            showStatus('PNG copied');
+          } else {
+            copyBlob(blob, null, 'PNG copied');
+          }
+        };
+        reader.readAsDataURL(blob);
+      }, 'image/png');
+    };
+    image.onerror = function() {
+      URL.revokeObjectURL(url);
+      showStatus('PNG copy failed');
+    };
+    image.src = url;
+  }
+
+  function runAction(action, diagramEl) {
+    const svg = getSvg(diagramEl) || activeSvg;
+    if (!svg && action !== 'close') return;
+    if (action === 'expand') openLightbox(diagramEl);
+    if (action === 'copy') copyText(serializeSvg(svg)).then(function() { showStatus('SVG copied'); });
+    if (action === 'png') copyPng(svg);
+    if (action === 'svg') copySvg(svg);
+  }
+
+  function makeButton(label, action, title) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'mermaid-tool-btn';
+    button.dataset.mermaidAction = action;
+    button.textContent = label;
+    button.title = title || label;
+    return button;
+  }
+
+  function addToolbar(diagramEl) {
+    if (!getSvg(diagramEl) || diagramEl.dataset.mermaidTools === 'ready') return;
+    diagramEl.dataset.mermaidTools = 'ready';
+
+    const shell = document.createElement('div');
+    shell.className = 'mermaid-diagram-shell';
+    diagramEl.parentNode.insertBefore(shell, diagramEl);
+    shell.appendChild(diagramEl);
+
+    const toolbar = document.createElement('div');
+    toolbar.className = 'mermaid-actionbar';
+    toolbar.appendChild(makeButton('⛶', 'expand', 'Open diagram'));
+    toolbar.appendChild(makeButton('Copy', 'copy', 'Copy SVG'));
+    toolbar.appendChild(makeButton('PNG', 'png', 'Copy PNG'));
+    toolbar.appendChild(makeButton('SVG', 'svg', 'Copy SVG'));
+    shell.appendChild(toolbar);
+
+    toolbar.addEventListener('click', function(event) {
+      const button = event.target.closest('[data-mermaid-action]');
+      if (!button) return;
+      event.preventDefault();
+      event.stopPropagation();
+      runAction(button.dataset.mermaidAction, diagramEl);
+    });
+
+    diagramEl.addEventListener('dblclick', function() {
+      openLightbox(diagramEl);
+    });
+  }
+
+  function setupMermaidTools() {
+    document.querySelectorAll('.mermaid').forEach(addToolbar);
+  }
+
+  function openLightbox(diagramEl) {
+    const svg = getSvg(diagramEl);
+    if (!svg) return;
+    activeSource = diagramEl;
+    activeSvg = svg.cloneNode(true);
+    activeSvg.removeAttribute('style');
+    activeSvg.style.transformOrigin = 'center center';
+    zoom = 1;
+    panX = 0;
+    panY = 0;
+    stage.innerHTML = '';
+    stage.appendChild(activeSvg);
+    lightbox.classList.add('active');
+    document.body.style.overflow = 'hidden';
+    applyTransform();
+  }
+
+  function closeLightbox() {
+    lightbox.classList.remove('active');
     document.body.style.overflow = '';
-    svgContainer.innerHTML = '';
-    svgContainer.classList.remove('selecting');
-    currentSvg = null;
-    originalViewBox = null;
-    currentZoom = 1;
-    panX = 0; panY = 0;
+    stage.innerHTML = '';
+    activeSource = null;
+    activeSvg = null;
+    dragging = false;
   }
 
   function zoomBy(factor) {
-    const newZoom = Math.min(Math.max(currentZoom * factor, 0.25), 8);
-    currentZoom = newZoom;
-    // Reset pan if zooming out to 1x or less
-    if (currentZoom <= 1) { panX = 0; panY = 0; }
-    applyViewBoxZoom();
-  }
-
-  function zoomReset() {
-    currentZoom = 1;
-    panX = 0; panY = 0;
-    applyViewBoxZoom();
-  }
-
-  function toggleZoom() {
-    if (currentZoom < 1.5) {
-      currentZoom = 2;
-    } else {
-      currentZoom = 1;
-      panX = 0; panY = 0;
+    zoom = Math.min(Math.max(zoom * factor, 0.25), 8);
+    if (zoom <= 1) {
+      panX = 0;
+      panY = 0;
     }
-    applyViewBoxZoom();
+    applyTransform();
   }
 
-  // Use viewBox manipulation for true vector zoom (text stays crisp)
-  function applyViewBoxZoom() {
-    if (currentSvg && originalViewBox) {
-      const parts = originalViewBox.split(/\\s+/).map(parseFloat);
-      const origW = parts[2], origH = parts[3];
-      const newW = origW / currentZoom;
-      const newH = origH / currentZoom;
-      // Pan offset relative to original size
-      const offsetX = (origW - newW) / 2 - (panX / currentZoom);
-      const offsetY = (origH - newH) / 2 - (panY / currentZoom);
-      currentSvg.setAttribute('viewBox', offsetX + ' ' + offsetY + ' ' + newW + ' ' + newH);
-      // Update cursor based on mode
-      updateCursor();
-    }
+  function resetZoom() {
+    zoom = 1;
+    panX = 0;
+    panY = 0;
+    applyTransform();
   }
 
-  function updateCursor() {
-    if (spaceHeld) {
-      svgContainer.style.cursor = isDragging ? 'grabbing' : 'grab';
-      svgContainer.classList.remove('selecting');
-    } else {
-      svgContainer.style.cursor = 'default';
-      svgContainer.classList.add('selecting');
-    }
+  function applyTransform() {
+    if (!activeSvg) return;
+    activeSvg.style.transform = 'translate(' + panX + 'px, ' + panY + 'px) scale(' + zoom + ')';
   }
 
-  // Pan/drag - only when holding spacebar (like design apps)
-  svgContainer.addEventListener('mousedown', function(e) {
-    if (spaceHeld && currentZoom > 1) {
-      isDragging = true;
-      dragStartX = e.clientX;
-      dragStartY = e.clientY;
-      dragStartPanX = panX;
-      dragStartPanY = panY;
-      e.preventDefault();
-      updateCursor();
+  lightbox.addEventListener('click', function(event) {
+    const button = event.target.closest('[data-mermaid-lightbox-action]');
+    if (button) {
+      const action = button.dataset.mermaidLightboxAction;
+      event.preventDefault();
+      if (action === 'close') closeLightbox();
+      if (action === 'copy') runAction('copy', activeSource);
+      if (action === 'png') runAction('png', activeSource);
+      if (action === 'svg') runAction('svg', activeSource);
+      if (action === 'zoom-in') zoomBy(1.25);
+      if (action === 'zoom-out') zoomBy(0.8);
+      if (action === 'zoom-reset') resetZoom();
+      return;
     }
-    // Otherwise allow normal text selection
+    if (event.target === lightbox) closeLightbox();
   });
 
-  document.addEventListener('mousemove', function(e) {
-    if (isDragging && currentSvg) {
-      panX = dragStartPanX + (e.clientX - dragStartX);
-      panY = dragStartPanY + (e.clientY - dragStartY);
-      applyViewBoxZoom();
-    }
+  stage.addEventListener('dblclick', function(event) {
+    event.preventDefault();
+    zoom < 1.5 ? zoomBy(2) : resetZoom();
+  });
+
+  stage.addEventListener('mousedown', function(event) {
+    dragging = true;
+    startX = event.clientX;
+    startY = event.clientY;
+    startPanX = panX;
+    startPanY = panY;
+    stage.classList.add('is-panning');
+    event.preventDefault();
+  });
+
+  document.addEventListener('mousemove', function(event) {
+    if (!dragging) return;
+    panX = startPanX + event.clientX - startX;
+    panY = startPanY + event.clientY - startY;
+    applyTransform();
   });
 
   document.addEventListener('mouseup', function() {
-    if (isDragging) {
-      isDragging = false;
-      updateCursor();
+    dragging = false;
+    stage.classList.remove('is-panning');
+  });
+
+  lightbox.addEventListener('wheel', function(event) {
+    if (!lightbox.classList.contains('active')) return;
+    if (event.ctrlKey || event.metaKey) {
+      event.preventDefault();
+      zoomBy(event.deltaY < 0 ? 1.12 : 0.9);
     }
-  });
+  }, { passive: false });
 
-  // Zoom controls
-  document.getElementById('mermaid-zoom-in').addEventListener('click', function(e) {
-    e.stopPropagation();
-    zoomBy(1.25);
-  });
-  document.getElementById('mermaid-zoom-out').addEventListener('click', function(e) {
-    e.stopPropagation();
-    zoomBy(0.8);
-  });
-  document.getElementById('mermaid-zoom-reset').addEventListener('click', function(e) {
-    e.stopPropagation();
-    zoomReset();
-  });
-
-  // Double-click to toggle zoom
-  let lastClickTime = 0;
-  svgContainer.addEventListener('dblclick', function(e) {
-    e.preventDefault();
-    toggleZoom();
-  });
-
-  // Keyboard shortcuts (with Cmd key for zoom, like macOS)
-  document.addEventListener('keydown', function(e) {
-    if (!overlay.classList.contains('active')) return;
-    if (e.key === 'Escape') closeOverlay();
-    // Spacebar to enable pan mode (like Photoshop/Figma)
-    if (e.key === ' ' && !e.repeat) {
-      e.preventDefault();
-      spaceHeld = true;
-      updateCursor();
-    }
-    // Cmd+Plus / Cmd+Equals to zoom in
-    if ((e.metaKey || e.ctrlKey) && (e.key === '+' || e.key === '=')) {
-      e.preventDefault();
+  document.addEventListener('keydown', function(event) {
+    if (!lightbox.classList.contains('active')) return;
+    if (event.key === 'Escape') closeLightbox();
+    if ((event.metaKey || event.ctrlKey) && (event.key === '+' || event.key === '=')) {
+      event.preventDefault();
       zoomBy(1.25);
     }
-    // Cmd+Minus to zoom out
-    if ((e.metaKey || e.ctrlKey) && (e.key === '-' || e.key === '_')) {
-      e.preventDefault();
+    if ((event.metaKey || event.ctrlKey) && (event.key === '-' || event.key === '_')) {
+      event.preventDefault();
       zoomBy(0.8);
     }
-    // Cmd+0 to reset zoom
-    if ((e.metaKey || e.ctrlKey) && e.key === '0') {
-      e.preventDefault();
-      zoomReset();
+    if ((event.metaKey || event.ctrlKey) && event.key === '0') {
+      event.preventDefault();
+      resetZoom();
     }
   });
 
-  document.addEventListener('keyup', function(e) {
-    if (e.key === ' ') {
-      spaceHeld = false;
-      isDragging = false;
-      updateCursor();
-    }
-  });
-
-  // Pinch-to-zoom (trackpad) and Cmd+scroll (mouse wheel)
-  // On macOS, pinch gestures send wheel events with ctrlKey=true
-  overlay.addEventListener('wheel', function(e) {
-    if (!overlay.classList.contains('active')) return;
-
-    // Pinch gesture (ctrlKey) or Cmd+scroll (metaKey)
-    if (e.ctrlKey || e.metaKey) {
-      e.preventDefault();
-      // Use deltaY for smooth continuous zoom
-      // Smaller factor for smoother pinch zoom
-      const factor = e.ctrlKey ?
-        Math.pow(1.01, -e.deltaY) :  // Pinch: very smooth
-        (e.deltaY < 0 ? 1.1 : 0.9);   // Cmd+scroll: step zoom
-      zoomBy(factor);
-    }
-    // Regular scroll without modifiers does nothing (natural behavior)
-  }, { passive: false });
+  window.setTimeout(setupMermaidTools, 700);
 })();
 </script>
 """
